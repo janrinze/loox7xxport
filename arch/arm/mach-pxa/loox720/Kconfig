@@ -32,7 +32,8 @@ config LOOX720_BT
 
 config LOOX720_PCMCIA
     tristate 'FSC Loox 720 CF/PC Card'
-    depends on MACH_LOOX720 && PCMCIA_PXA2XX
+    depends on MACH_LOOX720 
+    select PCMCIA_PXA2XX
     default m
     help
         Enable CF/PC Card controller in Loox 720. This must be set to Y if you

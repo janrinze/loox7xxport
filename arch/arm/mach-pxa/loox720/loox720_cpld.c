@@ -348,7 +348,7 @@ static int __init loox720_cpld_init(void)
     {
     	int irq = i + loox720_cpld_irq_base;
         set_irq_chip(irq, &loox720_irq_chip);
-//	set_irq_chip_data(irq, loox720_cpld_irq_data);
+	set_irq_chip_data(irq, loox720_cpld_irq_data);
 	set_irq_handler(irq, handle_level_irq);
     	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
     }
