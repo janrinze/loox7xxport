@@ -150,7 +150,7 @@ static pxa_freqs_t pxa27x_freqs[] = {
 	{416000, 208000, PXA27x_CCCR(1, 16, 4), 1, CCLKCFG2(1, 0, 1)},
 	{520000, 208000, PXA27x_CCCR(1, 16, 5), 1, CCLKCFG2(1, 0, 1)},
 #ifndef CONFIG_LOOX720_LIMIT_CPUFREQ
-	{624000, 208000, PXA27x_CCCR(1, 16, 6), 1, CCLKCFG2(1, 0, 1)}
+	{624000, 208000, PXA27x_CCCR(1, 16, 6), 1, CCLKCFG2(1, 0, 1)},
 #endif
 };
 

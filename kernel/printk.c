@@ -529,10 +529,8 @@ static void call_console_drivers(unsigned start, unsigned end)
 	_call_console_drivers(start_print, end, msg_level);
 }
 
-extern void asmlinkage printch(char c);
 static void emit_log_char(char c)
 {
-#if 0
 	LOG_BUF(log_end) = c;
 	log_end++;
 	if (log_end - log_start > log_buf_len)
@@ -541,8 +539,6 @@ static void emit_log_char(char c)
 		con_start = log_end - log_buf_len;
 	if (logged_chars < log_buf_len)
 		logged_chars++;
-#endif
-	printch(c);
 }
 
 /*
