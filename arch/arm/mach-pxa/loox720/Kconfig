@@ -1,0 +1,91 @@
+menu "Fujitsu-Siemens PocketLoox 720 configuration"
+    depends on MACH_LOOX720
+
+config LOOX720_LCD
+    tristate "FSC Loox 720 LCD"
+    depends on MACH_LOOX720
+    help
+        This driver provides support for changing power and brightness
+        on Loox 720 LCD display.
+
+config LOOX720_TS
+    tristate "FSC Loox 720 Touchscreen"
+    depends on MACH_LOOX720
+    select TOUCHSCREEN_ADC
+    help
+        This driver provides support for touchscreen.
+
+config LOOX720_BUTTONS
+    tristate "FSC Loox 720 Buttons"
+    depends on MACH_LOOX720
+    select INPUT_KEYBOARD
+    select KEYBOARD_GPIO
+    select KEYBOARD_PXA27x
+    help
+        FSC Loox 720 buttons support. Including power button.
+
+config LOOX720_BT
+    tristate "FSC Loox 720 Bluetooth (BRF6150)"
+    depends on MACH_LOOX720
+    help
+        FSC Loox 720 Bluetooth (BRF6150) support. Should be working good.
+
+config LOOX720_PCMCIA
+    tristate 'FSC Loox 720 CF/PC Card'
+    depends on MACH_LOOX720 && PCMCIA_PXA2XX
+    default m
+    help
+        Enable CF/PC Card controller in Loox 720. This must be set to Y if you
+        want to boot from CF card, but this also turns WiFi chip on.
+
+config LOOX720_FLASH
+    tristate "FSC Loox 720 Flash ROM"
+    select MTD_CFI
+    select MTD_PARTITIONS
+    select MTD_CFI_INTELEXT
+    select MTD_PHYSMAP
+    depends on MACH_LOOX720
+    help
+        FSC Loox 720 internal flash ROM support.
+
+config DRAM_BASE
+    hex '(S)DRAM Base Address'
+    depends on MACH_LOOX720
+    default 0xa8000000
+    help
+        On the Loox 720, RAM starts at 0xa8000000. But if you use
+        Haret prior to 0.4.9, set this to 0xaa000000, ot loox won't
+        boot. Also you will have to change DRAM Size value.
+
+config DRAM_SIZE
+    hex '(S)DRAM Size'
+    depends on MACH_LOOX720
+    default 0x8000000
+    help
+        The loox has 128 MB memory but due to some problems we set
+        the value to 96 MB. If you use Haret prior to 0.4.9, set this
+        to 0x6000000, ot loox won't boot.
+        Also you will have to change DRAM Base Address value.
+
+config LOOX720_LIMIT_CPUFREQ
+        bool 'Limit high CPU frequency to 520MHz'
+        depends on MACH_LOOX720
+        default yes
+        help
+                Not all LOOX pdas work on 624MHz. So, to avoid hangs, enable this.
+
+config LOOX720_GPIOED
+        tristate 'access GPIO from userland'
+        depends on MACH_LOOX720
+        default m
+        help
+                Enable this to allow GPIO access from userland.
+
+config LOOX720_CPLD_EDIT
+        tristate 'access CPLD bits from userland'
+        depends on MACH_LOOX720
+        default m
+        help
+                Enable this to allow CPLD bits access from userland.
+
+endmenu
