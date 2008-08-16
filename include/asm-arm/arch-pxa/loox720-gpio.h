@@ -99,7 +99,7 @@ else \
 #define GPIO_NR_LOOX720_PWE_N			49
 #define GPIO_NR_LOOX720_PIOR_N			50
 #define GPIO_NR_LOOX720_PIOW_N			51
-#define GPIO_NR_LOOX720_CPU_BATT_FAULT_N	52
+#define GPIO_NR_LOOX720_MMC_DETECT_N		52 // sure - low when an SD card is inserted
 
 #define GPIO_NR_LOOX720_PCE2_N			54
 #define GPIO_NR_LOOX720_PREG_N			55
@@ -122,6 +122,7 @@ else \
 #define GPIO_NR_LOOX720_ASIC3_RESET_N		71 // INVALID (we don't have ASIC) -> please detect correct function!
 //#define GPIO_NR_LOOX720_CHARGE_EN_N		72 // INVALID -> please detect correct function!
 #define GPIO_NR_LOOX720_LCD_UD_1		73
+#define GPIO_NR_LOOX720_MMC_RO			74 // sure - high when a write-protected SD card is inserted
 
 #define GPIO_NR_LOOX720_EARPHONE_DET_N		75 // INVALID -> please detect correct function!
 #define GPIO_NR_LOOX720_USB_PUEN		76 // INVALID -> please detect correct function!
