@@ -26,15 +26,15 @@
 #include <linux/backlight.h>
 #include <linux/err.h>
 
-#include <asm/arch/aximx3-init.h>
-#include <asm/arch/aximx3-gpio.h>
+//#include <asm/arch/aximx3-init.h>
+//#include <asm/arch/aximx3-gpio.h>
 #include <asm/arch/loox720-gpio.h>
 #include <linux/fb.h>
 #include <asm/mach-types.h>
 #include "asm/arch/pxa-regs.h"
 #include "asm/arch/pxafb.h"
 #include <linux/platform_device.h>
-#include <linux/corgi_bl.h>
+//#include <linux/corgi_bl.h>
 
 
 static struct pxafb_mode_info loox720_lcd_mode_info = {
@@ -85,7 +85,7 @@ loox720_lcd_init (void)
 		return -ENODEV;
 
 	set_pxa_fb_info(&loox720_fb_info);
-	pxafb_lcd_device = lcd_device_register("pxafb", NULL, &loox720_lcd_properties);
+//	pxafb_lcd_device = lcd_device_register("pxafb", NULL, &loox720_lcd_properties);
 
 	return 0;
 }
@@ -93,7 +93,7 @@ loox720_lcd_init (void)
 static void __exit
 loox720_lcd_exit (void)
 {
-	lcd_device_unregister (pxafb_lcd_device);
+//	lcd_device_unregister (pxafb_lcd_device);
 }
 
 module_init (loox720_lcd_init);
