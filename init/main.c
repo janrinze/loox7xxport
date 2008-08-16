@@ -537,6 +537,7 @@ asmlinkage void __init start_kernel(void)
 	extern struct kernel_param __start___param[], __stop___param[];
 
 	smp_setup_processor_id();
+	printk("Loox 720 Debug #2\n");
 
 	/*
 	 * Need to run as early as possible, to initialize the

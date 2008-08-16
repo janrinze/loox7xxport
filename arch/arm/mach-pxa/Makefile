@@ -45,6 +45,7 @@ endif
 obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 
 obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
+obj-$(CONFIG_MACH_LOOX720)	+= loox720/
 
 # Support for blinky lights
 led-y := leds.o
