@@ -34,6 +34,7 @@
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/gpio.h>
 
 #include <linux/serial.h>
 #include <asm/arch/loox720.h>
@@ -47,6 +48,8 @@
 #include <asm/arch/audio.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/irda.h>
+#include <asm/arch/mmc.h>
+#include <asm/arch/irqs.h>
 
 #include <linux/backlight.h>
 
@@ -371,6 +374,62 @@ static struct platform_device loox720_bt = {
 
 extern struct platform_device loox7xx_flash;
 
+/*
+ * MMC/SD
+ */
+
+static int loox7xx_mci_init(struct device *dev,
+				irq_handler_t detect_irq, void *data)
+{
+	int err;
+
+	err = request_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), detect_irq,
+				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				"SD card detect", data);
+	if (err)
+		goto err_request_irq;
+	err = gpio_request(GPIO_NR_LOOX720_MMC_RO, "SD_READONLY");
+	if (err)
+		goto err_request_readonly;
+
+	return 0;
+
+err_request_readonly:
+	free_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), data);
+err_request_irq:
+	return err;
+}
+
+static void loox7xx_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data *pdata = dev->platform_data;
+
+	loox720_egpio_set_bit(LOOX720_CPLD_SD_BIT, (1 << vdd) & pdata->ocr_mask);
+}
+
+static int loox7xx_mci_get_ro(struct device *dev)
+{
+	return gpio_get_value(GPIO_NR_LOOX720_MMC_RO);
+}
+
+static void loox7xx_mci_exit(struct device *dev, void *data)
+{
+	gpio_free(GPIO_NR_LOOX720_MMC_RO);
+	free_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), data);
+}
+
+static struct pxamci_platform_data loox7xx_mci_info = {
+	.ocr_mask = MMC_VDD_32_33|MMC_VDD_33_34,
+	.init     = loox7xx_mci_init,
+	.get_ro   = loox7xx_mci_get_ro,
+	.setpower = loox7xx_mci_setpower,
+	.exit     = loox7xx_mci_exit,
+};
+
+/*
+ * Loox 720
+ */
+ 
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
 #if 0
@@ -425,6 +484,7 @@ static void __init loox720_init( void )
 #ifdef CONFIG_LOOX720_BT
 	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
 #endif
+	pxa_set_mci_info(&loox7xx_mci_info);
 
 	platform_add_devices( devices, ARRAY_SIZE(devices) );
 }

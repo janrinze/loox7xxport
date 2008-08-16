@@ -59,10 +59,10 @@ static struct cpld_bit loox720_cpld_bits[] =
 	.bit   = LOOX720_CPLD_BACKLIGHT_BIT,
 	.value = 1
     },
-    {
-	.bit   = LOOX720_CPLD_SD_BIT,
-	.value = 1
-    },
+//    {
+//	.bit   = LOOX720_CPLD_SD_BIT,
+//	.value = 1
+//    },
     {	
 	.bit   = LOOX720_CPLD_BATTERY_BIT,
 	.value = 1    
