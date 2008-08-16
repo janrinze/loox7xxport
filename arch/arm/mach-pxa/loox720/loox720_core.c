@@ -378,13 +378,13 @@ loox720_core_probe( struct platform_device *pdev )
 	battery_irq = LOOX720_IRQ(BATTERY_FULL_N);
 	
 	printk( KERN_INFO "AC: connected=%d\n", connected );
-        if (request_irq( ac_irq, ac_isr, IRQF_SHARED,
+        if (request_irq( ac_irq, ac_isr, IRQF_DISABLED,
 			    "Loox 720 AC Detect", NULL ) != 0) {
 		printk( KERN_ERR "Unable to configure AC detect interrupt.\n" );
 		return -ENODEV;
 	}
 	
-	if (request_irq( battery_irq, battery_isr, IRQF_SHARED, "Loox 720 Battery Full", NULL) != 0) 
+	if (request_irq( battery_irq, battery_isr, IRQF_DISABLED, "Loox 720 Battery Full", NULL) != 0) 
 	{
 	    printk( KERN_ERR "Unable to configure battery-full detect interrupt.\n" );
 	    free_irq( ac_irq, NULL );
