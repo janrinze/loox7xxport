@@ -60,18 +60,19 @@ static struct pxa2xx_spi_chip ads_hw = {
 	.tx_threshold		= 1,
 	.rx_threshold		= 2,
 	.cs_control		= ads7846_cs,
+	.timeout		= 1000,
 };
 
-static struct spi_board_info spi_board_info[] __initdata = { {
-	.modalias	= "ads7846",
-	.platform_data	= &ads_info,
-	.controller_data = &ads_hw,
-	.irq		= LOOX720_IRQ(TOUCHPANEL_IRQ_N),
-	.max_speed_hz	= 120000 /* max sample rate at 3V */
-				* 26 /* command + data + overhead */,
-	.bus_num	= 1,
-	.chip_select	= 0,
-},
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias	= "ads7846",
+		.platform_data	= &ads_info,
+		.controller_data = &ads_hw,
+		.irq		= LOOX720_IRQ(TOUCHPANEL_IRQ_N),
+		.max_speed_hz	= 50000,
+		.bus_num	= 1,
+		.chip_select	= 0,
+	},
 };
 
 #if 0
@@ -123,7 +124,7 @@ static int __devinit loox720_ts_probe(struct platform_device *dev)
     //platform_device_register(&loox720_ts);
 
     // commented out since this currently hangs the kernel.
-    //spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
+    spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
     return 0;
 }
 

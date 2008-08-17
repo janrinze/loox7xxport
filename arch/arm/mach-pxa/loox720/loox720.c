@@ -232,42 +232,9 @@ static struct platform_device loox720_pxa_keys = {
 
 /*--------------------------------------------------------------------------------*/
 
-#if 0
-// SPI START
-
-static struct resource pxa_spi_nssp_resources[] = {
-	[0] = {
-		.start	= __PREG(SSCR0_P(1)), /* Start address of NSSP */
-		.end	= __PREG(SSCR0_P(1)) + 0x2c, /* Range of registers */
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_SSP, /* NSSP IRQ */
-		.end	= IRQ_SSP,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct pxa2xx_spi_master pxa_nssp_master_info = {
-	.ssp_type = PXA27x_SSP, /* Type of SSP */
-	.clock_enable = CKEN23_SSP1, /* NSSP Peripheral clock */
-	.num_chipselect = 1, /* Matches the number of chips attached to NSSP */
-	.enable_dma = 0, /* Enables NSSP DMA */
-};
-
-static struct platform_device pxa_spi_nssp = {
-	.name = "pxa2xx-spi", /* MUST BE THIS VALUE, so device match driver */
-	.id = 1, /* Bus number, MUST MATCH SSP number 1..n */
-	.resource = pxa_spi_nssp_resources,
-	.num_resources = ARRAY_SIZE(pxa_spi_nssp_resources),
-	.dev = {
-		.platform_data = &pxa_nssp_master_info, /* Passed to driver */
-	},
-};
-
-// SPI END
-#endif
-
+/*
+ * SPI
+ */
 
 /* borrowed from lubbock.c */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
@@ -574,24 +541,12 @@ static void __init loox720_init( void )
 	platform_add_devices( devices, ARRAY_SIZE(devices) );
 }
 
-/* Loox720 has 128MB RAM */
-//static void __init loox720_fixup(struct machine_desc *desc,
-//                      struct tag *tags, char **cmdline, struct meminfo *mi)
-//{
-//        mi->nr_banks=1;
-//        mi->bank[0].start = 0xa8000000;
-//        mi->bank[0].node = 0;
-//        mi->bank[0].size = (128*1024*1024);
-//}
-
 MACHINE_START(LOOX720, "FSC Loox 720")
-//	BOOT_MEM(0xaa000000, 0x40000000, io_p2v(0x40000000))
 	.phys_io = 0x40000000,
 	.io_pg_offst = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= CONFIG_DRAM_BASE + 0x100,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
-//	.fixup		= loox720_fixup,
 	.init_machine	= loox720_init,
 MACHINE_END
