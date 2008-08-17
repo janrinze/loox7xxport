@@ -237,8 +237,8 @@ static struct platform_device loox720_pxa_keys = {
 
 static struct resource pxa_spi_nssp_resources[] = {
 	[0] = {
-		.start	= __PREG(SSCR0_P1), /* Start address of NSSP */
-		.end	= __PREG(SSCR0_P1) + 0x2c, /* Range of registers */
+		.start	= __PREG(SSCR0_P(1)), /* Start address of NSSP */
+		.end	= __PREG(SSCR0_P(1)) + 0x2c, /* Range of registers */
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -267,6 +267,20 @@ static struct platform_device pxa_spi_nssp = {
 
 // SPI END
 #endif
+
+
+/* borrowed from lubbock.c */
+static struct pxa2xx_spi_master pxa_ssp_master_info = {
+	.num_chipselect	= 1,
+};
+
+static struct platform_device pxa_ssp = {
+	.name		= "pxa2xx-spi",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &pxa_ssp_master_info,
+	},
+};
 
 /*--------------------------------------------------------------------------------*/
 
@@ -496,7 +510,9 @@ static struct pxamci_platform_data loox7xx_mci_info = {
  
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
+	&pxa_ssp,
 #if 0
+
 	&pxa_spi_nssp,
 	&loox720_buttons,
 #endif

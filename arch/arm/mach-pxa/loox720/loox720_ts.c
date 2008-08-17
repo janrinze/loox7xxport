@@ -34,18 +34,6 @@
 
 /* borrowed from lubbock.c */
 
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
-	.num_chipselect	= 0,
-};
-
-static struct platform_device pxa_ssp = {
-	.name		= "pxa2xx-spi",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &pxa_ssp_master_info,
-	},
-};
-
 static int loox720_ads7846_pendown_state(void)
 {
 	/* TS_BUSY is bit 8 in LUB_MISC_RD, but pendown is irq-only */
@@ -62,6 +50,7 @@ static struct ads7846_platform_data ads_info = {
 static void ads7846_cs(u32 command)
 {
 	// no idea what this should do.. 
+	// SPI cs is the most likely candidate for resolving the cs
 
 	//static const unsigned	TS_nCS = 1 << 11;
 	//lubbock_set_misc_wr(TS_nCS, (command == PXA2XX_CS_ASSERT) ? 0 : TS_nCS);
@@ -132,7 +121,9 @@ static int __devinit loox720_ts_probe(struct platform_device *dev)
 {
     //platform_device_register(&ads7846_ssp);
     //platform_device_register(&loox720_ts);
-    spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
+
+    // commented out since this currently hangs the kernel.
+    //spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
     return 0;
 }
 
