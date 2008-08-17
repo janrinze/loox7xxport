@@ -382,21 +382,27 @@ static int loox7xx_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
 	int err;
-
+	err = gpio_request(GPIO_NR_LOOX720_MMC_DETECT_N, "SD_DETECT_N");
+	if (err)
+		goto err_request_detect;
+	gpio_direction_input(GPIO_NR_LOOX720_MMC_DETECT_N);
 	err = request_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), detect_irq,
-				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"SD card detect", data);
 	if (err)
 		goto err_request_irq;
 	err = gpio_request(GPIO_NR_LOOX720_MMC_RO, "SD_READONLY");
 	if (err)
 		goto err_request_readonly;
+	gpio_direction_input(GPIO_NR_LOOX720_MMC_RO);
 
 	return 0;
 
 err_request_readonly:
 	free_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), data);
 err_request_irq:
+	gpio_free(GPIO_NR_LOOX720_MMC_DETECT_N);
+err_request_detect:
 	return err;
 }
 
@@ -416,14 +422,16 @@ static void loox7xx_mci_exit(struct device *dev, void *data)
 {
 	gpio_free(GPIO_NR_LOOX720_MMC_RO);
 	free_irq(IRQ_GPIO(GPIO_NR_LOOX720_MMC_DETECT_N), data);
+	gpio_free(GPIO_NR_LOOX720_MMC_DETECT_N);
 }
 
 static struct pxamci_platform_data loox7xx_mci_info = {
-	.ocr_mask = MMC_VDD_32_33|MMC_VDD_33_34,
-	.init     = loox7xx_mci_init,
-	.get_ro   = loox7xx_mci_get_ro,
-	.setpower = loox7xx_mci_setpower,
-	.exit     = loox7xx_mci_exit,
+	.ocr_mask 	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.detect_delay	= 20,
+	.init     	= loox7xx_mci_init,
+	.get_ro   	= loox7xx_mci_get_ro,
+	.setpower 	= loox7xx_mci_setpower,
+	.exit     	= loox7xx_mci_exit,
 };
 
 /*
@@ -435,7 +443,11 @@ static struct platform_device *devices[] __initdata = {
 #if 0
 	&pxa_spi_nssp,
 	&loox720_buttons,
+#endif
+#ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
+#endif
+#if 0
 	&loox720_pxa_keys,
 	&loox720_bl,
 	&loox720_battery,
@@ -484,6 +496,7 @@ static void __init loox720_init( void )
 #ifdef CONFIG_LOOX720_BT
 	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
 #endif
+	loox7xx_mci_info.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&loox7xx_mci_info);
 
 	platform_add_devices( devices, ARRAY_SIZE(devices) );
