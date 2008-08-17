@@ -60,6 +60,8 @@
 #include <linux/adc_battery.h>
 */
 
+/*--------------------------------------------------------------------------------*/
+
 /*
  * IRDA
  */
@@ -174,6 +176,8 @@ static void __init loox_map_io(void)
 }
 */
 
+/*--------------------------------------------------------------------------------*/
+
 /*
  * Bluetooth - Relies on other loadable modules, like ASIC3 and Core,
  * so make the calls indirectly through pointers. Requires that the
@@ -196,7 +200,17 @@ static struct platform_pxa_serial_funcs loox720_pxa_bt_funcs = {
         .configure = loox720_bt_configure,
 };
 
+static struct platform_device loox720_bt = {
+        .name = "loox720-bt",
+        .id = -1,
+        .dev = {
+                .platform_data = &bt_funcs,
+        },
+};
+
 #endif
+
+/*--------------------------------------------------------------------------------*/
 
 /* PXA2xx Keys */
 
@@ -215,6 +229,8 @@ static struct platform_device loox720_pxa_keys = {
 		.platform_data = &loox720_pxa_keys_data,
 	},
 };
+
+/*--------------------------------------------------------------------------------*/
 
 #if 0
 // SPI START
@@ -252,9 +268,21 @@ static struct platform_device pxa_spi_nssp = {
 // SPI END
 #endif
 
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Touchscreen
+ */
+
 static struct platform_device loox720_ts = {
 	.name = "loox720-ts",
 };
+
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Backlight
+ */
 
 #if 0
 #define LOOX720_MAX_INTENSITY 0xc8
@@ -292,13 +320,31 @@ struct platform_device loox720_bl = {
 };
 #endif
 
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Buttons
+ */
+
 static struct platform_device loox720_buttons = {
 	.name = "loox720-buttons",
 };
 
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Battery
+ */
+
 static struct platform_device loox720_battery = {
 	.name = "loox720-battery",
 };
+
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Core
+ */
 
 static struct loox720_core_funcs core_funcs;
 
@@ -309,6 +355,12 @@ static struct platform_device loox720_core = {
 		.platform_data = &core_funcs,
 	},
 };
+
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * USB Device
+ */
 
 static int
 udc_detect(void)
@@ -342,6 +394,12 @@ static struct pxa2xx_udc_mach_info loox720_udc_info __initdata = {
 	.udc_command      = udc_command,
 };
 
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * USB Host
+ */
+
 static int loox720_ohci_init(struct device *dev)
 {
 	/* missing GPIO setup here */
@@ -360,19 +418,15 @@ static struct pxaohci_platform_data loox720_ohci_info = {
 		.init = loox720_ohci_init,
 };
 
-#ifdef CONFIG_LOOX720_BT
-/* Bluetooth */
+/*--------------------------------------------------------------------------------*/
 
-static struct platform_device loox720_bt = {
-        .name = "loox720-bt",
-        .id = -1,
-        .dev = {
-                .platform_data = &bt_funcs,
-        },
-};
-#endif
+/*
+ * Flash
+ */
 
 extern struct platform_device loox7xx_flash;
+
+/*--------------------------------------------------------------------------------*/
 
 /*
  * MMC/SD
@@ -433,6 +487,8 @@ static struct pxamci_platform_data loox7xx_mci_info = {
 	.setpower 	= loox7xx_mci_setpower,
 	.exit     	= loox7xx_mci_exit,
 };
+
+/*--------------------------------------------------------------------------------*/
 
 /*
  * Loox 720
