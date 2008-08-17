@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
 
 #include <pcmcia/ss.h>
 
@@ -30,6 +31,7 @@
 #include <asm/arch/loox720-gpio.h>
 #include <asm/arch/loox720-cpld.h>
 #include <asm/arch/loox720.h>
+#include <asm/arch/irqs.h>
 #include <linux/platform_device.h>
 
 #include "soc_common.h"
@@ -106,12 +108,12 @@ static int loox720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 		if(skt->nr == 1)
 			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET_N, 0);
 		else
-			SET_LOOX720_GPIO(WIFI_RST, 1);//loox720_set_egpio(LOOX720_EGPIO_CF1_RESET);
+			gpio_set_value(GPIO_NR_LOOX720_WIFI_RST, 1);
 	} else {
 		if(skt->nr == 1)
 			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET_N, 1);
 		else
-			SET_LOOX720_GPIO(WIFI_RST, 0);//loox720_clear_egpio(LOOX720_EGPIO_CF1_RESET);
+			gpio_set_value(GPIO_NR_LOOX720_WIFI_RST, 0);
 	}
 
 	/* Apply socket voltage */
@@ -125,7 +127,7 @@ static int loox720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 			else
 			{
 				loox720_egpio_set_bit(LOOX720_CPLD_WIFI_POWER, 0);
-				SET_LOOX720_GPIO(WIFI_PWR, 0);//loox720_clear_egpio(LOOX720_EGPIO_WIFI_PWR);
+				gpio_set_value(GPIO_NR_LOOX720_WIFI_PWR, 0);
 				loox720_disable_led(LOOX720_LED_LEFT, LOOX720_LED_COLOR_B);
 			}
 			break;
@@ -140,7 +142,7 @@ static int loox720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 			else
 			{
 				loox720_egpio_set_bit(LOOX720_CPLD_WIFI_POWER, 1);
-				SET_LOOX720_GPIO(WIFI_PWR, 1);//loox720_set_egpio(LOOX720_EGPIO_WIFI_PWR);
+				gpio_set_value(GPIO_NR_LOOX720_WIFI_PWR, 1);
 				loox720_enable_led(LOOX720_LED_LEFT, LOOX720_LED_COLOR_B | LOOX720_LED_BLINK);
 			}
 			break;
@@ -172,35 +174,39 @@ static struct pcmcia_low_level loox720_pcmcia_ops = {
 	.nr			= 2,
 };
 
-static struct platform_device *loox720_pcmcia_device;
-
-static void loox720_pcmcia_release(struct device *dev)
-{
-	kfree(loox720_pcmcia_device);
-}
+static struct platform_device loox720_pcmcia_device = {
+	.name		= "pxa2xx-pcmcia",
+	.dev		= {
+		.platform_data 	= &loox720_pcmcia_ops,
+	},
+};
 
 static int __init loox720_pcmcia_init(void)
 {
 	int ret;
-
-	loox720_pcmcia_device = kmalloc(sizeof(*loox720_pcmcia_device), GFP_KERNEL);
-	if (!loox720_pcmcia_device)
-		return -ENOMEM;
-	memset(loox720_pcmcia_device, 0, sizeof(*loox720_pcmcia_device));
-	loox720_pcmcia_device->name = "pxa2xx-pcmcia";
-	loox720_pcmcia_device->dev.platform_data = &loox720_pcmcia_ops;
-	loox720_pcmcia_device->dev.release = loox720_pcmcia_release;
-
-	ret = platform_device_register(loox720_pcmcia_device);
-	if (ret)
-		kfree(loox720_pcmcia_device);
-
-	return ret;
+	if(gpio_request(GPIO_NR_LOOX720_WIFI_PWR, "WiFi power") != 0) {
+		printk(KERN_ERR "Failed to request WiFi power GPIO\n");
+		return -ENODEV;
+	}
+		
+	if(gpio_request(GPIO_NR_LOOX720_WIFI_RST, "WiFi reset") != 0) {
+		printk(KERN_ERR "Failed to request WiFi reset GPIO\n");
+		gpio_free(GPIO_NR_LOOX720_WIFI_PWR);
+		return -ENODEV;
+	}
+	if((ret = platform_device_register(&loox720_pcmcia_device)) != 0) {
+		gpio_free(GPIO_NR_LOOX720_WIFI_PWR);
+		gpio_free(GPIO_NR_LOOX720_WIFI_RST);
+		return ret;
+	}
+	return 0;
 }
 
 static void __exit loox720_pcmcia_exit(void)
 {
-	platform_device_unregister(loox720_pcmcia_device);
+	gpio_free(GPIO_NR_LOOX720_WIFI_PWR);
+	gpio_free(GPIO_NR_LOOX720_WIFI_RST);
+	platform_device_unregister(&loox720_pcmcia_device);
 }
 
 module_init(loox720_pcmcia_init);

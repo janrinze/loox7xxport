@@ -174,6 +174,9 @@ static void pump_messages(struct work_struct *work);
 
 static int flush(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI flush()\n");
+// Loox Debug End
 	unsigned long limit = loops_per_jiffy << 1;
 
 	void __iomem *reg = drv_data->ioaddr;
@@ -194,6 +197,9 @@ static void null_cs_control(u32 command)
 
 static int null_writer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI null_writer()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 	u8 n_bytes = drv_data->n_bytes;
 
@@ -209,6 +215,9 @@ static int null_writer(struct driver_data *drv_data)
 
 static int null_reader(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI null_reader()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 	u8 n_bytes = drv_data->n_bytes;
 
@@ -223,6 +232,9 @@ static int null_reader(struct driver_data *drv_data)
 
 static int u8_writer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u8_writer()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
@@ -237,6 +249,9 @@ static int u8_writer(struct driver_data *drv_data)
 
 static int u8_reader(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u8_reader()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
@@ -250,6 +265,9 @@ static int u8_reader(struct driver_data *drv_data)
 
 static int u16_writer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u16_writer()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
@@ -264,6 +282,9 @@ static int u16_writer(struct driver_data *drv_data)
 
 static int u16_reader(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u16_reader()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
@@ -277,6 +298,9 @@ static int u16_reader(struct driver_data *drv_data)
 
 static int u32_writer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u32_writer()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
@@ -291,6 +315,9 @@ static int u32_writer(struct driver_data *drv_data)
 
 static int u32_reader(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI u32_reader()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	while ((read_SSSR(reg) & SSSR_RNE)
@@ -304,6 +331,9 @@ static int u32_reader(struct driver_data *drv_data)
 
 static void *next_transfer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI next_transfer()\n");
+// Loox Debug End
 	struct spi_message *msg = drv_data->cur_msg;
 	struct spi_transfer *trans = drv_data->cur_transfer;
 
@@ -320,6 +350,9 @@ static void *next_transfer(struct driver_data *drv_data)
 
 static int map_dma_buffers(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI map_dma_buffers()\n");
+// Loox Debug End
 	struct spi_message *msg = drv_data->cur_msg;
 	struct device *dev = &msg->spi->dev;
 
@@ -372,6 +405,9 @@ static int map_dma_buffers(struct driver_data *drv_data)
 
 static void unmap_dma_buffers(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI unmap_dma_buffers()\n");
+// Loox Debug End
 	struct device *dev;
 
 	if (!drv_data->dma_mapped)
@@ -391,6 +427,9 @@ static void unmap_dma_buffers(struct driver_data *drv_data)
 /* caller already set message->status; dma and pio irqs are blocked */
 static void giveback(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI giveback()\n");
+// Loox Debug End
 	struct spi_transfer* last_transfer;
 	unsigned long flags;
 	struct spi_message *msg;
@@ -417,6 +456,9 @@ static void giveback(struct driver_data *drv_data)
 
 static int wait_ssp_rx_stall(void const __iomem *ioaddr)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI wait_ssp_rx_stall()\n");
+// Loox Debug End
 	unsigned long limit = loops_per_jiffy << 1;
 
 	while ((read_SSSR(ioaddr) & SSSR_BSY) && limit--)
@@ -427,6 +469,9 @@ static int wait_ssp_rx_stall(void const __iomem *ioaddr)
 
 static int wait_dma_channel_stop(int channel)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI wait_dma_channel_stop()\n");
+// Loox Debug End
 	unsigned long limit = loops_per_jiffy << 1;
 
 	while (!(DCSR(channel) & DCSR_STOPSTATE) && limit--)
@@ -437,6 +482,9 @@ static int wait_dma_channel_stop(int channel)
 
 static void dma_error_stop(struct driver_data *drv_data, const char *msg)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI dma_error_stop()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	/* Stop and reset */
@@ -459,6 +507,9 @@ static void dma_error_stop(struct driver_data *drv_data, const char *msg)
 
 static void dma_transfer_complete(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI dma_transfer_complete()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 	struct spi_message *msg = drv_data->cur_msg;
 
@@ -505,6 +556,9 @@ static void dma_transfer_complete(struct driver_data *drv_data)
 
 static void dma_handler(int channel, void *data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI dma_handler()\n");
+// Loox Debug End
 	struct driver_data *drv_data = data;
 	u32 irq_status = DCSR(channel) & DMA_INT_MASK;
 
@@ -538,6 +592,9 @@ static void dma_handler(int channel, void *data)
 
 static irqreturn_t dma_transfer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI dma_transfer()\n");
+// Loox Debug End
 	u32 irq_status;
 	void __iomem *reg = drv_data->ioaddr;
 
@@ -573,6 +630,9 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 
 static void int_error_stop(struct driver_data *drv_data, const char* msg)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI int_error_stop()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	/* Stop and reset SSP */
@@ -591,6 +651,9 @@ static void int_error_stop(struct driver_data *drv_data, const char* msg)
 
 static void int_transfer_complete(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI int_transfer_complete()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	/* Stop SSP */
@@ -617,6 +680,9 @@ static void int_transfer_complete(struct driver_data *drv_data)
 
 static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI interrupt_transfer()\n");
+// Loox Debug End
 	void __iomem *reg = drv_data->ioaddr;
 
 	u32 irq_mask = (read_SSCR1(reg) & SSCR1_TIE) ?
@@ -677,6 +743,9 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 static irqreturn_t ssp_int(int irq, void *dev_id)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI ssp_int()\n");
+// Loox Debug End
 	struct driver_data *drv_data = dev_id;
 	void __iomem *reg = drv_data->ioaddr;
 
@@ -703,6 +772,9 @@ static int set_dma_burst_and_threshold(struct chip_data *chip,
 				u8 bits_per_word, u32 *burst_code,
 				u32 *threshold)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI set_dma_burst_and_threshold()\n");
+// Loox Debug End
 	struct pxa2xx_spi_chip *chip_info =
 			(struct pxa2xx_spi_chip *)spi->controller_data;
 	int bytes_per_word;
@@ -797,6 +869,9 @@ static int set_dma_burst_and_threshold(struct chip_data *chip,
 
 static unsigned int ssp_get_clk_div(struct ssp_device *ssp, int rate)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI ssp_get_clk_div()\n");
+// Loox Debug End
 	unsigned long ssp_clk = clk_get_rate(ssp->clk);
 
 	if (ssp->type == PXA25x_SSP)
@@ -807,6 +882,9 @@ static unsigned int ssp_get_clk_div(struct ssp_device *ssp, int rate)
 
 static void pump_transfers(unsigned long data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI pump_transfers()\n");
+// Loox Debug End
 	struct driver_data *drv_data = (struct driver_data *)data;
 	struct spi_message *message = NULL;
 	struct spi_transfer *transfer = NULL;
@@ -1030,6 +1108,9 @@ static void pump_transfers(unsigned long data)
 
 static void pump_messages(struct work_struct *work)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI pump_messages()\n");
+// Loox Debug End
 	struct driver_data *drv_data =
 		container_of(work, struct driver_data, pump_messages);
 	unsigned long flags;
@@ -1072,6 +1153,9 @@ static void pump_messages(struct work_struct *work)
 
 static int transfer(struct spi_device *spi, struct spi_message *msg)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI transfer()\n");
+// Loox Debug End
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
 	unsigned long flags;
 
@@ -1101,6 +1185,9 @@ static int transfer(struct spi_device *spi, struct spi_message *msg)
 
 static int setup(struct spi_device *spi)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI setup()\n");
+// Loox Debug End
 	struct pxa2xx_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
@@ -1244,6 +1331,9 @@ static int setup(struct spi_device *spi)
 
 static void cleanup(struct spi_device *spi)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI cleanup()\n");
+// Loox Debug End
 	struct chip_data *chip = spi_get_ctldata(spi);
 
 	kfree(chip);
@@ -1251,6 +1341,9 @@ static void cleanup(struct spi_device *spi)
 
 static int __init init_queue(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI init_queue()\n");
+// Loox Debug End
 	INIT_LIST_HEAD(&drv_data->queue);
 	spin_lock_init(&drv_data->lock);
 
@@ -1271,6 +1364,9 @@ static int __init init_queue(struct driver_data *drv_data)
 
 static int start_queue(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI start_queue()\n");
+// Loox Debug End
 	unsigned long flags;
 
 	spin_lock_irqsave(&drv_data->lock, flags);
@@ -1293,6 +1389,9 @@ static int start_queue(struct driver_data *drv_data)
 
 static int stop_queue(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI stop_queue()\n");
+// Loox Debug End
 	unsigned long flags;
 	unsigned limit = 500;
 	int status = 0;
@@ -1320,6 +1419,9 @@ static int stop_queue(struct driver_data *drv_data)
 
 static int destroy_queue(struct driver_data *drv_data)
 {
+// Loox Debug Start
+printk(KERN_DEBUG "SPI destroy_queue()\n");
+// Loox Debug End
 	int status;
 
 	status = stop_queue(drv_data);

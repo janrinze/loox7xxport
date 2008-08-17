@@ -28,20 +28,20 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/serial.h>
+#include <linux/gpio_keys.h>
+#include <linux/backlight.h>
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/setup.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/gpio.h>
 
-#include <linux/serial.h>
-#include <asm/arch/loox720.h>
-#include <asm/arch/loox720-gpio.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/regs-ssp.h>
-#include <linux/gpio_keys.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx_spi.h>
 #include <asm/arch/udc.h>
@@ -50,15 +50,23 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/irqs.h>
-
-#include <linux/backlight.h>
+#include <asm/arch/loox720.h>
+#include <asm/arch/loox720-gpio.h>
+#include <asm/arch/loox720-cpld.h>
 
 #include "../generic.h"
 #include "loox720_core.h"
-#include <asm/arch/loox720-cpld.h>
 /*
 #include <linux/adc_battery.h>
 */
+
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Pin Configuration
+ */
+ 
+ 
 
 /*--------------------------------------------------------------------------------*/
 
@@ -78,16 +86,28 @@ static void loox_irda_transceiver_mode(struct device *dev, int mode)
 		SET_LOOX720_GPIO_N(IR_ON, 0);
 */
 	if (mode & IR_OFF)
-		SET_LOOX720_GPIO_N(IR_ON, 1);
+		gpio_set_value(GPIO_NR_LOOX720_IR_ON_N, 1);
 	else
-		SET_LOOX720_GPIO_N(IR_ON, 0);
+		gpio_set_value(GPIO_NR_LOOX720_IR_ON_N, 0);
 
 	local_irq_restore(flags);
+}
+
+static int loox_irda_startup(struct device *dev)
+{
+	return gpio_request(GPIO_NR_LOOX720_IR_ON_N, "IrDA enable");
+}
+
+static void loox_irda_shutdown(struct device *dev)
+{
+	gpio_free(GPIO_NR_LOOX720_IR_ON_N);
 }
 
 static struct pxaficp_platform_data loox_ficp_info = {
 	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
 	.transceiver_mode = loox_irda_transceiver_mode,
+	.startup = loox_irda_startup,
+	.shutdown = loox_irda_shutdown,
 };
 
 /* Uncomment the following line to get serial console via SIR work from
@@ -346,7 +366,7 @@ static struct platform_device loox720_core = {
 static int
 udc_detect(void)
 {
-        int detected = (GET_LOOX720_GPIO(USB_DETECT_N)==0);
+        int detected = (gpio_get_value(GPIO_NR_LOOX720_USB_DETECT_N)==0);
 	printk (KERN_NOTICE "udc_detect: %d\n", detected);
 	return detected;
 }
@@ -529,6 +549,7 @@ static void __init loox720_init( void )
 
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
+	gpio_request(GPIO_NR_LOOX720_USB_DETECT_N, "UDC VBus detect");
 	pxa_set_udc_info(&loox720_udc_info);
 	pxa_set_ficp_info(&loox_ficp_info);
 	pxa_set_ohci_info(&loox720_ohci_info);

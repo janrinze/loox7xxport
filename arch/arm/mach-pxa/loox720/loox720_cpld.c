@@ -1,11 +1,13 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/arch/irqs.h>
-#include <linux/delay.h>
 #include <asm/arch/loox720-gpio.h>
 #include <asm/arch/loox720-cpld.h>
 
@@ -325,17 +327,25 @@ static int __init loox720_cpld_init(void)
     }
 
     printk(KERN_INFO "Physical address of CPLD: %08X\nVirtual address of CPLD: %08X\nUsing IRQs from %d to %d on IRQ %d\n",
-		LOOX720_CPLD_PHYS, (u32)cpld_mem, loox720_cpld_irq_base, loox720_cpld_irq_base + LOOX720_CPLD_IRQ_COUNT - 1, LOOX720_IRQ(CPLD_INT));
+		LOOX720_CPLD_PHYS, (u32)cpld_mem, loox720_cpld_irq_base, loox720_cpld_irq_base + LOOX720_CPLD_IRQ_COUNT - 1, IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT));
 
     for (i=0;i<ARRAY_SIZE(loox720_cpld_bits);i++)
     	loox720_egpio_set_bit( loox720_cpld_bits[i].bit, loox720_cpld_bits[i].value);
-    
+	
+	if(gpio_request(GPIO_NR_LOOX720_CPLD_INT, "CPLD interrupt") != 0) {
+		if (cpld_mem)
+			iounmap(cpld_mem);
+		printk(KERN_ERR "Failed to request CPLD interrupt GPIO\n");
+		return -ENODEV;
+	}
+
     loox720_cpld_irq_data = kmalloc(sizeof(struct loox720_irq_data), GFP_KERNEL);
     if(!loox720_cpld_irq_data)
     {
 	printk(KERN_ERR "kmalloc failed.\n");
 	if (cpld_mem)
 	    iounmap(cpld_mem);
+	gpio_free(GPIO_NR_LOOX720_CPLD_INT);
         return -ENOMEM;
     }
     
@@ -353,9 +363,9 @@ static int __init loox720_cpld_init(void)
     	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
     }
     
-    set_irq_data(LOOX720_IRQ(CPLD_INT), loox720_cpld_irq_data);
-    set_irq_type(LOOX720_IRQ(CPLD_INT), IRQT_RISING);
-    set_irq_chained_handler(LOOX720_IRQ(CPLD_INT), loox720_cpld_irq_demux);
+    set_irq_data(IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT), loox720_cpld_irq_data);
+    set_irq_type(IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT), IRQT_RISING);
+    set_irq_chained_handler(IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT), loox720_cpld_irq_demux);
     
     cpld_mem[0] = 0x3FF; // clear interrupts
     cpld_mem[1] = 0x3FF; // enable all interrupts for CFcard and Wifi
@@ -381,13 +391,15 @@ static void __exit loox720_cpld_exit(void)
             set_irq_chip(irq, NULL);
 	    set_irq_flags(irq, 0);
 	}
-	set_irq_chained_handler(LOOX720_IRQ(CPLD_INT), NULL);
-	set_irq_data(LOOX720_IRQ(CPLD_INT), NULL);
+	set_irq_chained_handler(IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT), NULL);
+	set_irq_data(IRQ_GPIO(GPIO_NR_LOOX720_CPLD_INT), NULL);
     }
     if (loox720_cpld_irq_data)
 	kfree(loox720_cpld_irq_data);
     if (cpld_mem)
         iounmap(cpld_mem);
+        
+	gpio_free(GPIO_NR_LOOX720_CPLD_INT);
 }
 
 module_init( loox720_cpld_init );

@@ -28,6 +28,13 @@
 #include <linux/spi/ads7846.h>
 #include <asm/irq.h>
 
+#define VERBOSE 1
+#undef dev_dbg
+#define dev_dbg(dev, format, arg...)            \
+	dev_printk(KERN_DEBUG , dev , format , ## arg)
+#undef pr_debug
+#define pr_debug(fmt, arg...) \
+	printk(KERN_DEBUG fmt, ##arg)
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
