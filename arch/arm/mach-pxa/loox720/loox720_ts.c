@@ -37,8 +37,10 @@
 
 static int loox720_ads7846_pendown_state(void)
 {
-	/* TS_BUSY is bit 8 in LUB_MISC_RD, but pendown is irq-only */
-	return 0;
+	int pendown_state;
+	pendown_state = (gpio_get_value(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N) == 0);
+	printk(KERN_DEBUG "ads7846 pendown state: %d\n", pendown_state);
+	return pendown_state;
 }
 
 static struct ads7846_platform_data ads_info = {
@@ -70,7 +72,7 @@ static struct spi_board_info spi_board_info[] __initdata = {
 		.platform_data		= &ads_info,
 		.controller_data 	= &ads_hw,
 		.irq			= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-		.max_speed_hz		= 50000,
+		.max_speed_hz		= 120000 /* max sample rate at 3V */ * 26 /* command + data + overhead */,
 		.bus_num		= 1,
 		.chip_select		= 0,
 	},
