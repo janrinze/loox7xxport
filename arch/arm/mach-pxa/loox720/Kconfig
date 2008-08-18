@@ -2,14 +2,14 @@ menu "Fujitsu-Siemens PocketLoox 720 configuration"
     depends on MACH_LOOX720
 
 config LOOX720_LCD
-    tristate "FSC Loox 720 LCD"
+    bool "FSC Loox 720 LCD"
     depends on MACH_LOOX720
     help
         This driver provides support for changing power and brightness
         on Loox 720 LCD display.
 
 config LOOX720_TS
-    tristate "FSC Loox 720 Touchscreen"
+    bool "FSC Loox 720 Touchscreen"
     depends on MACH_LOOX720
     select SPI
     select SPI_PXA2XX
@@ -18,7 +18,7 @@ config LOOX720_TS
         This driver provides support for touchscreen.
 
 config LOOX720_BUTTONS
-    tristate "FSC Loox 720 Buttons"
+    bool "FSC Loox 720 Buttons"
     depends on MACH_LOOX720
     select INPUT_KEYBOARD
     select KEYBOARD_GPIO
