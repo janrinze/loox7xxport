@@ -53,6 +53,7 @@
 #include <asm/arch/loox720.h>
 #include <asm/arch/loox720-gpio.h>
 #include <asm/arch/loox720-cpld.h>
+#include <asm/arch/mfp-pxa27x.h>
 
 #include "../generic.h"
 #include "loox720_core.h"
@@ -66,7 +67,112 @@
  * Pin Configuration
  */
  
- 
+ static unsigned long loox720_pin_config[] = {
+/* Crystal and Clock Signals */
+	GPIO10_HZ_CLK,
+/* PC CARD */
+	GPIO15_nPCE_1,
+	GPIO78_nPCE_2,
+	GPIO55_nPREG,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO49_nPWE,
+	GPIO48_nPOE,
+	GPIO57_nIOIS16,
+	GPIO56_nPWAIT,
+	GPIO79_PSKTSEL,
+/* SDRAM and Static Memory I/O Signals */
+	GPIO20_nSDCS_2,
+	GPIO21_nSDCS_3,
+	GPIO80_nCS_4,
+	GPIO33_nCS_5,
+/* Miscellaneous I/O and DMA Signals */
+	GPIO18_RDY,
+/* FFUART */
+	GPIO35_FFUART_CTS,
+	GPIO37_FFUART_DSR,
+	GPIO34_FFUART_RXD,
+	GPIO39_FFUART_TXD,
+	GPIO41_FFUART_RTS,
+	GPIO40_FFUART_DTR,
+/* BTUART */
+	GPIO44_BTUART_CTS,
+	GPIO42_BTUART_RXD,
+	GPIO45_BTUART_RTS,
+	GPIO43_BTUART_TXD,
+/* STUART */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+/* PWM 0/1/2/3 */
+	GPIO16_PWM0_OUT,
+	GPIO17_PWM1_OUT,
+/* SSP 1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+/* QCI - default to Master Mode: CIF_FV/CIF_LV Direction In */
+	GPIO27_CIF_DD_0,
+	GPIO114_CIF_DD_1,
+	GPIO116_CIF_DD_2,
+	GPIO115_CIF_DD_3,
+	GPIO83_CIF_DD_4,
+	GPIO82_CIF_DD_5,
+	GPIO93_CIF_DD_6,
+	GPIO108_CIF_DD_7,
+	GPIO54_CIF_PCLK,
+	GPIO84_CIF_FV,
+	GPIO85_CIF_LV,
+	GPIO53_CIF_MCLK,
+/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+/* USB Host Port 1/2 */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+/* I2S */
+	GPIO29_I2S_SDATA_IN,
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+	GPIO113_I2S_SYSCLK,
+/* Keypad */
+	GPIO100_KP_MKIN_0,
+	GPIO101_KP_MKIN_1,
+	GPIO102_KP_MKIN_2,
+	GPIO97_KP_MKIN_3,
+	GPIO98_KP_MKIN_4,
+	GPIO99_KP_MKIN_5,
+	GPIO103_KP_MKOUT_0,
+	GPIO104_KP_MKOUT_1,
+	GPIO105_KP_MKOUT_2,
+/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+ };
 
 /*--------------------------------------------------------------------------------*/
 
@@ -548,6 +654,7 @@ static void __init loox720_init( void )
 #endif
 
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
+	pxa2xx_mfp_config(loox720_pin_config, ARRAY_SIZE(loox720_pin_config));
 
 	gpio_request(GPIO_NR_LOOX720_USB_DETECT_N, "UDC VBus detect");
 	pxa_set_udc_info(&loox720_udc_info);
