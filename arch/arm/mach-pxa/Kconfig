@@ -143,8 +143,6 @@ config MACH_LOOX720
 	select PXA27x
 	select IWMMXT
 	select PXA_SUSPEND_SAVE_EXTRA_REGS
-	select INPUT_KEYBOARD
-	select KEYBOARD_GPIO
 
 endchoice
 

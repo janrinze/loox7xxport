@@ -11,6 +11,8 @@ config LOOX720_LCD
 config LOOX720_TS
     tristate "FSC Loox 720 Touchscreen"
     depends on MACH_LOOX720
+    select SPI
+    select SPI_PXA2XX
     select TOUCHSCREEN_ADS7846
     help
         This driver provides support for touchscreen.
@@ -27,6 +29,9 @@ config LOOX720_BUTTONS
 config LOOX720_BT
     tristate "FSC Loox 720 Bluetooth (BRF6150)"
     depends on MACH_LOOX720
+    select BT
+    select BT_HCIUART
+    select BT_HCIUART_LL
     help
         FSC Loox 720 Bluetooth (BRF6150) support. Should be working good.
 
