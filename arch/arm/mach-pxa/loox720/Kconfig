@@ -11,7 +11,7 @@ config LOOX720_LCD
 config LOOX720_TS
     tristate "FSC Loox 720 Touchscreen"
     depends on MACH_LOOX720
-    select TOUCHSCREEN_ADC
+    select TOUCHSCREEN_ADS7846
     help
         This driver provides support for touchscreen.
 
@@ -33,6 +33,7 @@ config LOOX720_BT
 config LOOX720_PCMCIA
     tristate 'FSC Loox 720 CF/PC Card'
     depends on MACH_LOOX720 
+    select PCCARD
     select PCMCIA_PXA2XX
     default m
     help
