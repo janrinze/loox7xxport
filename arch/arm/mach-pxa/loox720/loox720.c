@@ -367,8 +367,19 @@ static struct platform_device loox720_bt = {
 
 /* PXA2xx Keys */
 
+/*
 static struct gpio_keys_button loox720_button_table[] = {
 	{ KEY_POWER, GPIO_NR_LOOX720_KEY_ON, 1 },
+};
+*/
+static struct gpio_keys_button loox720_button_table[] = {
+	[0] = {
+		.desc	= "wakeup",
+		.code	= KEY_SUSPEND,
+		.type	= EV_KEY,
+		.gpio	= GPIO_NR_LOOX720_KEY_ON,
+		.wakeup	= 1,
+	},
 };
 
 static struct gpio_keys_platform_data loox720_pxa_keys_data = {
@@ -378,7 +389,8 @@ static struct gpio_keys_platform_data loox720_pxa_keys_data = {
 
 static struct platform_device loox720_pxa_keys = {
 	.name = "gpio-keys",
-	.dev = {
+	.id   = -1,
+	.dev  = {
 		.platform_data = &loox720_pxa_keys_data,
 	},
 };
@@ -631,25 +643,31 @@ static struct pxamci_platform_data loox7xx_mci_info = {
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
 	&pxa_ssp,
-#if 0
 
-	&pxa_spi_nssp,
-	&loox720_buttons,
-#endif
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
 #endif
-#if 0
+
 	&loox720_pxa_keys,
-	&loox720_bl,
-	&loox720_battery,
+
+#ifdef CONFIG_LOOX720_BUTTONS
+	&loox720_buttons,
 #endif
+
 #ifdef CONFIG_LOOX720_BT
 	&loox720_bt,
 #endif
+
 #ifdef CONFIG_LOOX720_FLASH
 	&loox7xx_flash,
 #endif
+
+#if 0
+	&pxa_spi_nssp,
+	&loox720_bl,
+	&loox720_battery,
+#endif
+
 };
 
 static void __init loox720_init( void )
