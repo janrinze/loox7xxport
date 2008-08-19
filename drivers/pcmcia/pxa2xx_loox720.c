@@ -42,6 +42,7 @@ static struct pcmcia_irqs irqs[] = {
 
 static int loox720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
+#if 0
 	/*
 	 * Setup default state of GPIO outputs
 	 * before we enable them as outputs.
@@ -64,6 +65,7 @@ static int loox720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	pxa_gpio_mode(GPIO55_nPREG_MD);
 	pxa_gpio_mode(GPIO56_nPWAIT_MD);
 	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+#endif
 
 	skt->irq = (skt->nr == 1) ? LOOX720_CPLD_IRQ(CF) : LOOX720_CPLD_IRQ(WIFI);
 	printk(KERN_INFO "loox720_pcmcia: Using IRQ %d for socket %d.\n", skt->irq, skt->nr);
