@@ -55,8 +55,11 @@
 #include <asm/arch/loox720-cpld.h>
 #include <asm/arch/mfp-pxa27x.h>
 
+#include <asm/arch/sharpsl.h>
+
 #include "../generic.h"
 #include "loox720_core.h"
+#include "../sharpsl.h"
 /*
 #include <linux/adc_battery.h>
 */
@@ -340,6 +343,7 @@ static void __init loox_map_io(void)
 
 #ifdef CONFIG_LOOX720_BT
 
+#if 0
 static struct loox720_bt_funcs bt_funcs;
 
 static void
@@ -352,13 +356,13 @@ loox720_bt_configure( int state )
 static struct platform_pxa_serial_funcs loox720_pxa_bt_funcs = {
         .configure = loox720_bt_configure,
 };
-
+#endif
 static struct platform_device loox720_bt = {
         .name = "loox720-bt",
-        .id = -1,
-        .dev = {
-                .platform_data = &bt_funcs,
-        },
+//        .id = -1,
+//        .dev = {
+//                .platform_data = &bt_funcs,
+//        },
 };
 
 #endif
@@ -400,10 +404,14 @@ static struct platform_device loox720_pxa_keys = {
 /*
  * SPI
  */
+ 
+
 
 /* borrowed from lubbock.c */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
+	.clock_enable = CKEN_SSP1,
 	.num_chipselect	= 1,
+	.enable_dma = 0,
 };
 
 static struct platform_device pxa_ssp = {
@@ -423,6 +431,68 @@ static struct platform_device pxa_ssp = {
 static struct platform_device loox720_ts = {
 	.name = "loox720-ts",
 };
+
+#if 0
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * Touchscreen
+ */
+
+/* borrowed from poodle.c */
+
+static struct resource loox720_ts_resources[] = {
+        [0] = {
+                .start          = IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
+                .end            = IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
+                .flags          = IORESOURCE_IRQ,
+        },
+};
+
+static unsigned long loox720_get_hsync_invperiod(void)
+{
+        return 0;
+}
+
+static void loox720_null_hsync(void)
+{
+}
+
+static struct corgits_machinfo  loox720_ts_machinfo = {
+        .get_hsync_invperiod    = loox720_get_hsync_invperiod,
+        .put_hsync              = loox720_null_hsync,
+        .wait_hsync             = loox720_null_hsync,
+};
+
+static struct platform_device loox720_ts_device = {
+        .name           = "corgi-ts",
+        .dev            = {
+                .platform_data  = &loox720_ts_machinfo,
+        },
+        .id             = -1,
+        .num_resources  = ARRAY_SIZE(loox720_ts_resources),
+        .resource       = loox720_ts_resources,
+};
+
+/*
+ * Loox SSP Device
+ */
+
+struct platform_device loox720_ssp_device = {
+        .name           = "corgi-ssp",
+        .id             = -1,
+};
+
+struct corgissp_machinfo loox720_ssp_machinfo = {
+        .port           = 1,
+        .cs_lcdcon      = -1,
+        .cs_ads7846     = -1,
+        .cs_max1111     = -1,
+        .clk_lcdcon     = 32,
+        .clk_ads7846    = 32,
+        .clk_max1111    = 32,
+};
+#endif
 
 /*--------------------------------------------------------------------------------*/
 
@@ -643,31 +713,26 @@ static struct pxamci_platform_data loox7xx_mci_info = {
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
 	&pxa_ssp,
-
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
 #endif
-
 	&loox720_pxa_keys,
-
 #ifdef CONFIG_LOOX720_BUTTONS
 	&loox720_buttons,
 #endif
-
 #ifdef CONFIG_LOOX720_BT
 	&loox720_bt,
 #endif
-
 #ifdef CONFIG_LOOX720_FLASH
 	&loox7xx_flash,
 #endif
-
+//	&loox720_ts_device,
+//	&loox720_ssp_device,
 #if 0
 	&pxa_spi_nssp,
 	&loox720_bl,
 	&loox720_battery,
 #endif
-
 };
 
 static void __init loox720_init( void )
@@ -705,11 +770,12 @@ static void __init loox720_init( void )
 	pxa_set_udc_info(&loox720_udc_info);
 	pxa_set_ficp_info(&loox_ficp_info);
 	pxa_set_ohci_info(&loox720_ohci_info);
-#ifdef CONFIG_LOOX720_BT
-	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
-#endif
+//#ifdef CONFIG_LOOX720_BT
+//	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
+//#endif
 	loox7xx_mci_info.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&loox7xx_mci_info);
+//	corgi_ssp_set_machinfo(&loox720_ssp_machinfo);
 
 	platform_add_devices( devices, ARRAY_SIZE(devices) );
 }
