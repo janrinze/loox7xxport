@@ -61,7 +61,7 @@
 #define GPIO_NR_LOOX720_MMC_DETECT_N		52 // IN - sure - low when an SD card is inserted
 
 #define GPIO_NR_LOOX720_MMC_RO			74 // IN - sure - high when a write-protected SD card is inserted
-#define GPIO_NR_LOOX720_EARPHONE_DET_N		75 // UNKNOWN OUT
+#define GPIO_NR_LOOX720_EARPHONE_DET_N		75 // UNKNOWN OUT - driving low fades the screen to white
 
 #define GPIO_NR_LOOX720_IR_ON_N			81 // UNKNOWN OUT
 
