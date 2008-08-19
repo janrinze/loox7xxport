@@ -108,12 +108,12 @@ static int loox720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 	if(state->flags & SS_RESET) {
 		if(skt->nr == 1)
-			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET_N, 0);
+			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET, 1);
 		else
 			gpio_set_value(GPIO_NR_LOOX720_WIFI_RST, 1);
 	} else {
 		if(skt->nr == 1)
-			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET_N, 1);
+			loox720_egpio_set_bit(LOOX720_CPLD_CF_RESET, 0);
 		else
 			gpio_set_value(GPIO_NR_LOOX720_WIFI_RST, 0);
 	}

@@ -88,6 +88,10 @@ static struct cpld_bit loox720_cpld_bits[] =
     {
 	.bit   = LOOX720_CPLD_LED2_EN_3,
 	.value = 1
+    },
+    {
+    	.bit	= LOOX720_CPLD_CF_RESET_N,
+    	.value = 1
     }
 };
 
