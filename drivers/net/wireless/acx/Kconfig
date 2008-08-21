@@ -64,6 +64,6 @@ config ACX_USB
 
 config ACX_CS
 	bool "TI acx100/acx111 802.11b/g PCMCIA"
-#	depends on ACX && (USB=y || USB=ACX)
+	depends on ACX 
 	---help---
-	Include USB support in acx.
+	Include PCMCIA support in acx.
