@@ -54,7 +54,7 @@
 #include <asm/arch/loox720-gpio.h>
 #include <asm/arch/loox720-cpld.h>
 #include <asm/arch/mfp-pxa27x.h>
-
+#include <asm/arch/i2c.h>
 #include <asm/arch/sharpsl.h>
 
 #include "../generic.h"
@@ -770,6 +770,8 @@ static void __init loox720_init( void )
 	pxa_set_udc_info(&loox720_udc_info);
 	pxa_set_ficp_info(&loox_ficp_info);
 	pxa_set_ohci_info(&loox720_ohci_info);
+	pxa_set_i2c_info(NULL);
+
 //#ifdef CONFIG_LOOX720_BT
 //	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
 //#endif

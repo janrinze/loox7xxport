@@ -38,7 +38,7 @@
 
 
 static struct pxafb_mode_info loox720_lcd_mode_info = {
-	.pixclock		= 153847, // Since we now use double pixel clock
+	.pixclock		= 80000, // Since we now use double pixel clock
 	.bpp			= 16,
 	.xres			= 480,
 	.yres			= 640,
@@ -56,7 +56,7 @@ static struct pxafb_mach_info loox720_fb_info =
 	.modes		= &loox720_lcd_mode_info,
 	.num_modes	= 1,
 	.lccr0		= LCCR0_Act | LCCR0_Sngl | LCCR0_Color ,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_DPC,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg, // | LCCR3_DPC,
 };
 
 static int loox720_lcd_set_power(struct lcd_device *dev, int power)
