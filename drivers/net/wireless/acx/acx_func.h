@@ -426,12 +426,18 @@ void acx_set_status(acx_device_t *adev, u16 status);
 /* We want to log cmd names */
 int acxpci_s_issue_cmd_timeo_debug(acx_device_t *adev, unsigned cmd, void *param, unsigned len, unsigned timeout, const char* cmdstr);
 int acxusb_s_issue_cmd_timeo_debug(acx_device_t *adev, unsigned cmd, void *param, unsigned len, unsigned timeout, const char* cmdstr);
+int acxmem_s_issue_cmd_timeo_debug(acx_device_t *adev, unsigned cmd, void *param, unsigned len, unsigned timeout, const char* cmdstr);
 static inline int
 acx_s_issue_cmd_timeo_debug(acx_device_t *adev, unsigned cmd, void *param, unsigned len, unsigned timeout, const char* cmdstr)
 {
 	if (IS_PCI(adev))
 		return acxpci_s_issue_cmd_timeo_debug(adev, cmd, param, len, timeout, cmdstr);
-	return acxusb_s_issue_cmd_timeo_debug(adev, cmd, param, len, timeout, cmdstr);
+	else
+	if (IS_USB(adev))
+		return acxusb_s_issue_cmd_timeo_debug(adev, cmd, param, len, timeout, cmdstr);
+	else
+	if (IS_CS(adev))
+		return acxmem_s_issue_cmd_timeo_debug(adev, cmd, param, len, timeout, cmdstr);
 }
 #define acx_s_issue_cmd(adev,cmd,param,len) \
 	acx_s_issue_cmd_timeo_debug(adev,cmd,param,len,ACX_CMD_TIMEOUT_DEFAULT,#cmd)
@@ -512,32 +518,50 @@ int acxpci_s_upload_radio(acx_device_t *adev);
 */
 int acxpci_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
 int acxusb_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
+int acxmem_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
 static inline int
 acx_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf)
 {
 	if (IS_PCI(adev))
 		return acxpci_s_read_phy_reg(adev, reg, charbuf);
-	return acxusb_s_read_phy_reg(adev, reg, charbuf);
+	else
+	if (IS_USB(adev))
+		return acxusb_s_read_phy_reg(adev, reg, charbuf);
+	else
+	if (IS_CS(adev))
+		return acxmem_s_read_phy_reg(adev, reg, charbuf);
 }
 
 int acxpci_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
 int acxusb_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
+int acxmem_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
 static inline int
 acx_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value)
 {
 	if (IS_PCI(adev))
 		return acxpci_s_write_phy_reg(adev, reg, value);
-	return acxusb_s_write_phy_reg(adev, reg, value);
+	else
+	if (IS_USB(adev))
+		return acxusb_s_write_phy_reg(adev, reg, value);
+	else
+	if (IS_CS(adev))
+		return acxmem_s_write_phy_reg(adev, reg, value);
 }
 
 tx_t* acxpci_l_alloc_tx(acx_device_t *adev);
 tx_t* acxusb_l_alloc_tx(acx_device_t *adev);
+tx_t* acxmem_l_alloc_tx(acx_device_t *adev);
 static inline tx_t*
 acx_l_alloc_tx(acx_device_t *adev)
 {
 	if (IS_PCI(adev))
 		return acxpci_l_alloc_tx(adev);
-	return acxusb_l_alloc_tx(adev);
+	else
+	if (IS_USB(adev))
+		return acxusb_l_alloc_tx(adev);
+	else
+	if (IS_CS(adev))
+		return acxmem_l_alloc_tx(adev);
 }
 
 void acxusb_l_dealloc_tx(tx_t *tx_opaque);
@@ -550,23 +574,35 @@ acx_l_dealloc_tx(acx_device_t *adev, tx_t *tx_opaque)
 
 void* acxpci_l_get_txbuf(acx_device_t *adev, tx_t *tx_opaque);
 void* acxusb_l_get_txbuf(acx_device_t *adev, tx_t *tx_opaque);
+void* acxmem_l_get_txbuf(acx_device_t *adev, tx_t *tx_opaque);
 static inline void*
 acx_l_get_txbuf(acx_device_t *adev, tx_t *tx_opaque)
 {
 	if (IS_PCI(adev))
 		return acxpci_l_get_txbuf(adev, tx_opaque);
-	return acxusb_l_get_txbuf(adev, tx_opaque);
+	else
+	if (IS_USB(adev))
+		return acxusb_l_get_txbuf(adev, tx_opaque);
+	else
+	if (IS_CS(adev))
+		return acxmem_l_get_txbuf(adev, tx_opaque);
 }
 
 void acxpci_l_tx_data(acx_device_t *adev, tx_t *tx_opaque, int len);
 void acxusb_l_tx_data(acx_device_t *adev, tx_t *tx_opaque, int len);
+void acxmem_l_tx_data(acx_device_t *adev, tx_t *tx_opaque, int len);
+
 static inline void
 acx_l_tx_data(acx_device_t *adev, tx_t *tx_opaque, int len)
 {
 	if (IS_PCI(adev))
 		acxpci_l_tx_data(adev, tx_opaque, len);
 	else
+	if (IS_USB(adev))
 		acxusb_l_tx_data(adev, tx_opaque, len);
+	else
+	if (IS_CS(adev))
+		acxmem_l_tx_data(adev, tx_opaque, len);
 }
 
 static inline wlan_hdr_t*
@@ -647,5 +683,22 @@ struct iw_statistics* acx_e_get_wireless_stats(struct net_device *ndev);
 
 int __init acxpci_e_init_module(void);
 int __init acxusb_e_init_module(void);
+//int __init acxmem_e_init_module(void);
+int __init acx_cs_init(void);
+
 void __exit acxpci_e_cleanup_module(void);
 void __exit acxusb_e_cleanup_module(void);
+//void __exit acxmem_e_cleanup_module(void);
+void __exit acx_cs_cleanup(void);
+
+void acxmem_l_power_led(acx_device_t *adev, int enable);
+int acxmem_read_eeprom_byte(acx_device_t *adev, u32 addr, u8 *charbuf);
+unsigned int acxmem_l_clean_txdesc(acx_device_t *adev);
+void acxmem_l_clean_txdesc_emergency(acx_device_t *adev);
+int acxmem_s_create_hostdesc_queues(acx_device_t *adev);
+void acxmem_create_desc_queues(acx_device_t *adev, u32 tx_queue_start, u32 rx_queue_start);
+void acxmem_free_desc_queues(acx_device_t *adev);
+char* acxmem_s_proc_diag_output(char *p, acx_device_t *adev);
+int acxmem_proc_eeprom_output(char *p, acx_device_t *adev);
+void acxmem_set_interrupt_mask(acx_device_t *adev);
+int acx100mem_s_set_tx_level(acx_device_t *adev, u8 level_dbm);

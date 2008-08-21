@@ -7189,7 +7189,7 @@ acx_s_parse_configoption(acx_device_t *adev, const acx111_ie_configoption_t *pcf
 static int __init
 acx_e_init_module(void)
 {
-	int r1,r2;
+	int r1,r2,r3;
 
 	acx_struct_size_check();
 
@@ -7198,18 +7198,23 @@ acx_e_init_module(void)
 		"recommended, visit http://acx100.sf.net in case "
 		"of further questions/discussion\n");
 
-#if defined(CONFIG_ACX_PCI)
+#ifdef ACX_PCI
 	r1 = acxpci_e_init_module();
 #else
 	r1 = -EINVAL;
 #endif
-#if defined(CONFIG_ACX_USB)
+#ifdef ACX_USB
 	r2 = acxusb_e_init_module();
 #else
 	r2 = -EINVAL;
 #endif
-	if (r2 && r1) /* both failed! */
-		return r2 ? r2 : r1;
+#if 1
+	r3 = acx_cs_init();
+#else
+	r3 = -EINVAL;
+#endif
+	if (r2 && r1 && r3) /* all failed! */
+		return r3 ? r3 : (r2 ? r2 : r1);
 	/* return success if at least one succeeded */
 	return 0;
 }
@@ -7217,11 +7222,14 @@ acx_e_init_module(void)
 static void __exit
 acx_e_cleanup_module(void)
 {
-#if defined(CONFIG_ACX_PCI)
+#ifdef ACX_PCI
 	acxpci_e_cleanup_module();
 #endif
-#if defined(CONFIG_ACX_USB)
+#ifdef ACX_USB
 	acxusb_e_cleanup_module();
+#endif
+#if 1
+	acx_cs_cleanup();
 #endif
 }
 

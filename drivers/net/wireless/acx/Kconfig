@@ -61,3 +61,9 @@ config ACX_USB
 
 	Firmware files are not covered by GPL and are not distributed
 	with this driver for legal reasons.
+
+config ACX_CS
+	bool "TI acx100/acx111 802.11b/g PCMCIA"
+#	depends on ACX && (USB=y || USB=ACX)
+	---help---
+	Include USB support in acx.

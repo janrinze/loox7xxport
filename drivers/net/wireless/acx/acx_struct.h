@@ -104,30 +104,33 @@ enum { acx_debug = 0 };
 /* Supported interfaces */
 #define DEVTYPE_PCI		0
 #define DEVTYPE_USB		1
+#define DEVTYPE_MEM             2
 
 #if !defined(CONFIG_ACX_PCI) && !defined(CONFIG_ACX_USB)
 #error Driver must include PCI and/or USB support. You selected neither.
 #endif
 
-#if defined(CONFIG_ACX_PCI)
- #if !defined(CONFIG_ACX_USB)
-  #define IS_PCI(adev)	1
- #else
-  #define IS_PCI(adev)	((adev)->dev_type == DEVTYPE_PCI)
- #endif
-#else
+//#if defined(CONFIG_ACX_PCI)
+// #if !defined(CONFIG_ACX_USB)
+//  #define IS_PCI(adev)	1
+// #else
+//  #define IS_PCI(adev)	((adev)->dev_type == DEVTYPE_PCI)
+// #endif
+//#else
  #define IS_PCI(adev)	0
-#endif
+//#endif
 
-#if defined(CONFIG_ACX_USB)
- #if !defined(CONFIG_ACX_PCI)
-  #define IS_USB(adev)	1
- #else
-  #define IS_USB(adev)	((adev)->dev_type == DEVTYPE_USB)
- #endif
-#else
+//#if defined(CONFIG_ACX_USB)
+// #if !defined(CONFIG_ACX_PCI)
+//  #define IS_USB(adev)	1
+// #else
+//  #define IS_USB(adev)	((adev)->dev_type == DEVTYPE_USB)
+// #endif
+//#else
  #define IS_USB(adev)	0
-#endif
+//#endif
+
+#define IS_CS(adev)	1
 
 /* Driver defaults */
 #define DEFAULT_DTIM_INTERVAL	10
@@ -504,6 +507,12 @@ typedef struct phy_hdr {
 	u8	unknown[4];
 	u8	acx111_unknown[4];
 } ACX_PACKED phy_hdr_t;
+
+typedef struct shared_queueindicator {
+        u32     indicator;
+        u16     host_lock;
+        u16     fw_lock;
+} ACX_PACKED queueindicator_t;
 
 /* seems to be a bit similar to hfa384x_rx_frame.
  * These fields are still not quite obvious, though.
@@ -950,7 +959,9 @@ struct rxdesc {
 	u32	unknown2;
 } ACX_PACKED;		/* size 52 = 0x34 */
 
-#ifdef ACX_PCI
+//#ifdef ACX_PCI
+//#if defined(ACX_PCI) || defined(ACX_CS)
+#if 1
 
 /* Register I/O offsets */
 #define ACX100_EEPROM_ID_OFFSET	0x380
@@ -1219,6 +1230,10 @@ struct acx_device {
 	unsigned long		sem_time;
 	unsigned long		lock_time;
 #endif
+//#ifdef ACX_CS
+#if 1
+        spinlock_t              txbuf_lock;
+#endif
 
 	/*** Linux network device ***/
 	struct net_device	*ndev;		/* pointer to linux netdevice */
@@ -1391,6 +1406,15 @@ struct acx_device {
 	/*** Unknown ***/
 	u8		dtim_interval;
 
+//#ifdef ACX_CS
+#if 1
+        u32 acx_txbuf_start;
+        int acx_txbuf_numblocks;
+        u32 acx_txbuf_free;                    /* addr of head of free list          */
+        int acx_txbuf_blocks_free;             /* how many are still open            */
+        queueindicator_t *acx_queue_indicator;
+#endif
+
 	/*** Card Rx/Tx management ***/
 	u16		rx_config_1;
 	u16		rx_config_2;
@@ -1468,6 +1492,54 @@ struct acx_device {
 	int		bulkinep;	/* bulk-in endpoint */
 	int		bulkoutep;	/* bulk-out endpoint */
 	int		rxtruncsize;
+#endif
+
+        /*** CS stuff ***/
+//#ifdef ACX_CS
+#if 1
+	/* pointers to tx buffers, tx host descriptors (in host memory)
+	** and tx descs in device memory */
+	unsigned int	tx_tail;
+	u8		*txbuf_start;
+	txhostdesc_t	*txhostdesc_start;
+	txdesc_t	*txdesc_start;	/* points to PCI-mapped memory */
+	dma_addr_t	txbuf_startphy;
+	dma_addr_t	txhostdesc_startphy;
+	/* sizes of above host memory areas */
+	unsigned int	txbuf_area_size;
+	unsigned int	txhostdesc_area_size;
+
+	unsigned int	txdesc_size;	/* size of txdesc; ACX111 = ACX100 + 4 */
+	client_t	*txc[TX_CNT];
+	u16		txr[TX_CNT];
+
+	/* same for rx */
+	unsigned int	rx_tail;
+	rxbuffer_t	*rxbuf_start;
+	rxhostdesc_t	*rxhostdesc_start;
+	rxdesc_t	*rxdesc_start;
+	/* physical addresses of above host memory areas */
+	dma_addr_t	rxbuf_startphy;
+	/* dma_addr_t	rxhostdesc_startphy; */
+	unsigned int	rxbuf_area_size;
+	unsigned int	rxhostdesc_area_size;
+
+	u8		need_radio_fw;
+	u8		irqs_active;	/* whether irq sending is activated */
+
+	const u16	*io;		/* points to ACX100 or ACX111 PCI I/O register address set */
+	struct device	*dev;
+	volatile u32	*membase;
+	volatile u32	*iobase;
+	void __iomem	*iobase2;
+	/* command interface */
+	u8 __iomem	*cmd_area;
+	u8 __iomem	*info_area;
+
+	u16		irq_mask;		/* interrupt types to mask out (not wanted) with many IRQs activated */
+	u16		irq_mask_off;		/* interrupt types to mask out (not wanted) with IRQs off */
+	unsigned int	irq_loops_this_jiffy;
+	unsigned long	irq_last_jiffies;
 #endif
 
 };
