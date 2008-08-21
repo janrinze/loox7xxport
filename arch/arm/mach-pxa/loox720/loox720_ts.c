@@ -32,15 +32,11 @@
 #include <asm/arch/irqs.h>
 #include "../generic.h"
 
-
 /* borrowed from lubbock.c */
 
 static int loox720_ads7846_pendown_state(void)
 {
-	int pendown_state;
-	pendown_state = (gpio_get_value(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N) == 0);
-	printk(KERN_DEBUG "ads7846 pendown state: %d\n", pendown_state);
-	return pendown_state;
+	return (gpio_get_value(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N) == 0);
 }
 
 static struct ads7846_platform_data ads_info = {
@@ -61,9 +57,10 @@ static void ads7846_cs(u32 command)
 
 static struct pxa2xx_spi_chip ads_hw = {
 	.tx_threshold		= 1,
-	.rx_threshold		= 2,
+	.rx_threshold		= 1,
 	.cs_control		= ads7846_cs,
-	.timeout		= 1000,
+	.timeout		= 13000000,
+	.enable_loopback	= 0,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -72,9 +69,10 @@ static struct spi_board_info spi_board_info[] __initdata = {
 		.platform_data		= &ads_info,
 		.controller_data 	= &ads_hw,
 		.irq			= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-		.max_speed_hz		= 120000 /* max sample rate at 3V */ * 26 /* command + data + overhead */,
+		.max_speed_hz		= 125000 * 26,
 		.bus_num		= 1,
 		.chip_select		= 0,
+		.mode			= SPI_MODE_0,
 	},
 };
 
