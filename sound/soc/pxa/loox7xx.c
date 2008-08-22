@@ -39,7 +39,60 @@
 #include <asm/arch/loox720-cpld.h>
 #include <asm/arch/loox720-gpio.h>
 
+#include <asm/arch/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/workqueue.h>
+
+static int loox_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params);
+static int loox_wm8750_init(struct snd_soc_codec *codec);
+
 static struct snd_soc_machine loox;
+
+
+static struct snd_soc_ops loox_ops = {
+//	.startup = loox_startup,
+	.hw_params = loox_hw_params,
+};
+
+static struct snd_soc_dai_link loox_dai = {
+	.name = "WM8750",
+	.stream_name = "WM8750 HiFi",
+	.cpu_dai = &pxa_i2s_dai,
+	.codec_dai = &wm8750_dai,
+	.init = loox_wm8750_init,
+	.ops = &loox_ops,
+};
+
+static struct snd_soc_machine loox = {
+	.name = "Loox Audio",
+	.dai_link = &loox_dai,
+	.num_links = 1,
+};
+
+static struct wm8750_setup_data loox_wm8750_setup = {
+	.i2c_address = 0x1a,
+};
+
+static struct snd_soc_device loox_snd_devdata = {
+	.machine = &loox,
+	.platform = &pxa2xx_soc_platform,
+	.codec_dev = &soc_codec_dev_wm8750,
+	.codec_data = &loox_wm8750_setup,
+};
+
+static struct platform_device *loox_snd_device;
+
+
+
+/* irq for headphone switch GPIO */
+static unsigned int hp_switch_irq ;
+
+/* for headphone switch IRQ handling */
+static struct work_struct hp_switch_task;
+static struct workqueue_struct *hp_switch_wq;
+
 
 static int loox_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -97,43 +150,47 @@ static int loox_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int loox_wm8750_init(struct snd_soc_codec *codec)
+static void loox_wm8750_hp_switch() 
 {
-	return 0;
+	int reg;
+	int hp_in;
+	if (loox_snd_devdata.dev != NULL) {
+	    hp_in = gpio_get_value(GPIO_NR_LOOX720_HEADPHONE_DET);
+	    if (hp_in) {
+		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
+		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffe5) | 0x0040);
+	    } else {
+		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
+		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffbf) | 0x0022); 
+	    }
+	    enable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
+	}
 }
 
-static struct snd_soc_ops loox_ops = {
-//	.startup = loox_startup,
-	.hw_params = loox_hw_params,
-};
+static int loox_wm8750_hp_switch_isr(int irq, void *data)
+{
+	disable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
+	PREPARE_WORK(&hp_switch_task, loox_wm8750_hp_switch);
+	queue_work(hp_switch_wq, &hp_switch_task);
+	return IRQ_HANDLED;
+}
 
-static struct snd_soc_dai_link loox_dai = {
-	.name = "WM8750",
-	.stream_name = "WM8750 HiFi",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &wm8750_dai,
-	.init = loox_wm8750_init,
-	.ops = &loox_ops,
-};
-
-static struct snd_soc_machine loox = {
-	.name = "Loox Audio",
-	.dai_link = &loox_dai,
-	.num_links = 1,
-};
-
-static struct wm8750_setup_data loox_wm8750_setup = {
-	.i2c_address = 0x1a,
-};
-
-static struct snd_soc_device loox_snd_devdata = {
-	.machine = &loox,
-	.platform = &pxa2xx_soc_platform,
-	.codec_dev = &soc_codec_dev_wm8750,
-	.codec_data = &loox_wm8750_setup,
-};
-
-static struct platform_device *loox_snd_device;
+static int loox_wm8750_init(struct snd_soc_codec *codec)
+{
+	hp_switch_irq = IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET);
+	if (request_irq( hp_switch_irq, loox_wm8750_hp_switch_isr,IRQF_DISABLED|
+	    IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, "Headphone detect", NULL) != 0) {
+		printk( KERN_ERR "Unable to aquire headphone detect IRQ.\n" );
+		free_irq( hp_switch_irq, NULL );
+		hp_switch_irq =0;
+		return 0;
+	}
+	hp_switch_wq = create_workqueue("HP_SWITCH_WQ");
+	disable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
+	INIT_WORK(&hp_switch_task, loox_wm8750_hp_switch);
+	queue_work(hp_switch_wq, &hp_switch_task);	
+return 0;
+}
 
 static int __init loox_init(void)
 {
@@ -149,16 +206,16 @@ static int __init loox_init(void)
 	platform_set_drvdata(loox_snd_device, &loox_snd_devdata);
 	loox_snd_devdata.dev = &loox_snd_device->dev;
 	ret = platform_device_add(loox_snd_device);
-
 	if (ret)
 		platform_device_put(loox_snd_device);
-
 	return ret;
 }
 
 static void __exit loox_exit(void)
 {
 	platform_device_unregister(loox_snd_device);
+	if (hp_switch_irq != 0)
+	    free_irq( hp_switch_irq, NULL);
     loox720_egpio_set_bit(LOOX720_CPLD_SOUND_BIT, 0);
     loox720_egpio_set_bit(LOOX720_CPLD_SND_AMPLIFIER_BIT, 0);
 }
