@@ -86,8 +86,10 @@ static struct platform_device *loox_snd_device;
 
 
 
+/* note that with this switching code ROUT2/LOUT2 (the VoIP speaker) is always deactivated */
+
 /* irq for headphone switch GPIO */
-static unsigned int hp_switch_irq ;
+static unsigned int hp_switch_irq;
 
 /* for headphone switch IRQ handling */
 static struct work_struct hp_switch_task;
@@ -157,11 +159,15 @@ static void loox_wm8750_hp_switch()
 	if (loox_snd_devdata.dev != NULL) {
 	    hp_in = gpio_get_value(GPIO_NR_LOOX720_HEADPHONE_DET);
 	    if (hp_in) {
+		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"OUT3",0);
+		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"LOUT1",1);
 		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
-		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffe5) | 0x0040);
+		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffe1) | 0x0060);
 	    } else {
+		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"OUT3",1);
+		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"LOUT1",0);
 		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
-		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffbf) | 0x0022); 
+		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffa2) | 0x0022); 
 	    }
 	    enable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
 	}
@@ -178,18 +184,22 @@ static int loox_wm8750_hp_switch_isr(int irq, void *data)
 static int loox_wm8750_init(struct snd_soc_codec *codec)
 {
 	hp_switch_irq = IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET);
-	if (request_irq( hp_switch_irq, loox_wm8750_hp_switch_isr,IRQF_DISABLED|
-	    IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, "Headphone detect", NULL) != 0) {
-		printk( KERN_ERR "Unable to aquire headphone detect IRQ.\n" );
-		free_irq( hp_switch_irq, NULL );
-		hp_switch_irq =0;
-		return 0;
+	if (request_irq( hp_switch_irq, loox_wm8750_hp_switch_isr,IRQF_DISABLED|IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, "Headphone detect", NULL) != 0) {
+		 printk( KERN_ERR "Unable to aquire headphone detect IRQ.\n" );
+		 free_irq( hp_switch_irq, NULL);
+		 hp_switch_irq =0;
+		 return 0;
 	}
+/* deactivating VoIP speaker */
+        snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"LOUT2",0);
+        snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"ROUT2",0);
+/* ROUT1 is always on */
+        snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"ROUT1",1);
 	hp_switch_wq = create_workqueue("HP_SWITCH_WQ");
 	disable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
 	INIT_WORK(&hp_switch_task, loox_wm8750_hp_switch);
 	queue_work(hp_switch_wq, &hp_switch_task);	
-return 0;
+	return 0;
 }
 
 static int __init loox_init(void)
