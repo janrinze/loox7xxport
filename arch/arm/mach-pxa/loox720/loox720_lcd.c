@@ -29,6 +29,7 @@
 //#include <asm/arch/aximx3-init.h>
 //#include <asm/arch/aximx3-gpio.h>
 #include <asm/arch/loox720-gpio.h>
+#include <asm/arch/loox720-cpld.h>
 #include <linux/fb.h>
 #include <asm/mach-types.h>
 #include "asm/arch/pxa-regs.h"
@@ -51,32 +52,35 @@ static struct pxafb_mode_info loox720_lcd_mode_info = {
 	.sync			= 0,
 };
 
+static void loox720_backlight_power(int on)
+{
+	loox720_egpio_set_bit(LOOX720_CPLD_BACKLIGHT_BIT, on);
+}
+
+static void loox720_lcd_power(int on, struct fb_var_screeninfo *var)
+{
+	if(on) {
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT2, 1);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_CONSOLE_BIT, 1);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 1);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 1);
+	} else {
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 0);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 0);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_CONSOLE_BIT, 0);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT2, 0);
+	}
+}
+
 static struct pxafb_mach_info loox720_fb_info =
 {
-	.modes		= &loox720_lcd_mode_info,
-	.num_modes	= 1,
-	.lccr0		= LCCR0_Act | LCCR0_Sngl | LCCR0_Color ,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg, // | LCCR3_DPC,
+	.modes			= &loox720_lcd_mode_info,
+	.num_modes		= 1,
+	.lccr0			= LCCR0_Act | LCCR0_Sngl | LCCR0_Color ,
+	.lccr3			= LCCR3_OutEnH | LCCR3_PixRsEdg, // | LCCR3_DPC,
+	.pxafb_backlight_power	= loox720_backlight_power,
+	.pxafb_lcd_power	= loox720_lcd_power,
 };
-
-static int loox720_lcd_set_power(struct lcd_device *dev, int power)
-{
-    return 0;
-}
-
-static int loox720_lcd_get_power(struct lcd_device *dev)
-{
-    return 0;
-}
-
-static struct lcd_ops loox720_lcd_properties =
-{
-	.set_power = loox720_lcd_set_power,
-	.get_power = loox720_lcd_get_power,
-	/* @@ more here @@ */
-};
-
-static struct lcd_device *pxafb_lcd_device;
 
 static int __init
 loox720_lcd_init (void)
@@ -85,7 +89,6 @@ loox720_lcd_init (void)
 		return -ENODEV;
 
 	set_pxa_fb_info(&loox720_fb_info);
-//	pxafb_lcd_device = lcd_device_register("pxafb", NULL, &loox720_lcd_properties);
 
 	return 0;
 }
@@ -93,7 +96,7 @@ loox720_lcd_init (void)
 static void __exit
 loox720_lcd_exit (void)
 {
-//	lcd_device_unregister (pxafb_lcd_device);
+
 }
 
 module_init (loox720_lcd_init);
