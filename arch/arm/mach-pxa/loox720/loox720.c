@@ -1,23 +1,14 @@
 /*
  *
- * Hardware definitions for HP iPAQ Handheld Computers
+ * Hardware definitions for Fujitsu-Siemens PocketLOOX 7xx series handhelds
  *
- * Copyright 2004 Hewlett-Packard Company.
+ * Copyright 2004 Fujitsu-Siemens Computers.
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
  * preserved in its entirety in all copies and derived works.
  *
- * COMPAQ COMPUTER CORPORATION MAKES NO WARRANTIES, EXPRESSED OR IMPLIED,
- * AS TO THE USEFULNESS OR CORRECTNESS OF THIS CODE OR ITS
- * FITNESS FOR ANY PARTICULAR PURPOSE.
- *
- * History:
- *
- * 2004-11-2004	Michael Opdenacker	Preliminary version
- * 2004-12-16   Todd Blumer
- * 2004-12-22   Michael Opdenacker	Added USB management
- * 2005-01-30   Michael Opdenacker	Improved Asic3 settings and initialization
+ * based on hx4700.c
  */
 
 

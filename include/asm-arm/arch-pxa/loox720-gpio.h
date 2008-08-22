@@ -54,7 +54,7 @@
 
 #define GPIO_NR_LOOX720_CPU_BT_RESET_N		22 // OUT - sure - Bluetooth chip reset pin - low to enable BRF6150 reset state, high to disable
 
-#define GPIO_NR_LOOX720_UNK_36			36 // UNKNOWN OUT
+#define GPIO_NR_LOOX720_USB_CHARGE_N		36 // OUT - sure - low -> charge from USB; high -> charge from the AC adapter
 
 #define GPIO_NR_LOOX720_UNK_38			38 // UNKNOWN IN
 
@@ -76,7 +76,7 @@
 #define GPIO_NR_LOOX720_USB_CHARGE_RATE		96 // UNKNOWN IN - seems like related to the sound system
 
 #define GPIO_NR_LOOX720_UNK_106			106 // UNKNOWN OUT
-#define GPIO_NR_LOOX720_CHARGE_EN_N		107 // OUT - sure - set low to disable battery charging
+#define GPIO_NR_LOOX720_CHARGE_EN_N		107 // OUT - sure - high to disable battery charging
 
 #define GPIO_NR_LOOX720_UNK_119			119 // UNKNOWN IN
 #define GPIO_NR_LOOX720_HEADPHONE_DET		120 // IN - sure - headphone detect (high when headphones are connected)
