@@ -37,10 +37,11 @@ static u32 save[6];
 
 static unsigned int ac_irq = 0xffffffff;
 static unsigned int battery_irq = 0xffffffff;
+static unsigned int usb_irq = 0xffffffff;
 
 static void update_battery_charging(void)
 {
-    int connected = gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0;
+    int connected = (gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0) | (gpio_get_value(GPIO_NR_LOOX720_USB_DETECT_N) == 0);
     if (connected)
     {
         int battery_full = gpio_get_value(GPIO_NR_LOOX720_BATTERY_FULL_N) == 0;
@@ -64,15 +65,18 @@ static void update_battery_charging(void)
     }
 }
 
+static void update_battery_chip(void)
+{
+	int connected = (gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0) || (gpio_get_value(GPIO_NR_LOOX720_USB_DETECT_N) == 0);
+	printk( KERN_INFO "battery: charging controller enabled=%d\n", connected );
+	loox720_egpio_set_bit(LOOX720_CPLD_BATTERY_BIT, connected);
+}
+
 static int
 battery_isr(int irq, void *data)
 {
     int full = gpio_get_value(GPIO_NR_LOOX720_BATTERY_FULL_N) == 0;
     printk( KERN_INFO "battery_isr: battery_full=%d\n", full);
-    if (full)
-        set_irq_type( battery_irq, IRQT_RISING ); 
-    else
-        set_irq_type( battery_irq, IRQT_FALLING ); 
 
     update_battery_charging();
     
@@ -90,15 +94,29 @@ ac_isr(int irq, void *data)
 	connected = gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0;
 	printk( KERN_INFO "ac_isr: connected=%d\n", connected );
 
-	if (connected)
-	    set_irq_type( ac_irq, IRQT_RISING ); 
-	else
-	    set_irq_type( ac_irq, IRQT_FALLING ); 
-	    
 	update_battery_charging();
+	update_battery_chip();
 
 	return IRQ_HANDLED;
 }
+
+static int
+usb_isr(int irq, void *data)
+{
+	int connected;
+
+	if (irq != usb_irq)
+	    return IRQ_NONE;
+
+	connected = gpio_get_value(GPIO_NR_LOOX720_USB_DETECT_N) == 0;
+	printk( KERN_INFO "usb_isr: connected=%d\n", connected );
+
+	update_battery_charging();
+	update_battery_chip();
+
+	return IRQ_HANDLED;
+}
+
 static int loox720_suspend(struct platform_device *pdev, pm_message_t state)
 {
         /* 0x20c2 is HTC clock value
@@ -375,53 +393,42 @@ struct pxa_ll_pm_ops loox720_ll_pm_ops = {
 static int
 loox720_core_probe( struct platform_device *pdev )
 {
-	int connected = gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0;
-        int battery_full = gpio_get_value(GPIO_NR_LOOX720_BATTERY_FULL_N) == 0;
+	int battery_full, usb_connected, ac_connected;
 
 	printk( KERN_NOTICE "Loox 720 Core Hardware Driver\n" );
 
 	ac_irq = IRQ_GPIO(GPIO_NR_LOOX720_AC_IN_N);
 	battery_irq = IRQ_GPIO(GPIO_NR_LOOX720_BATTERY_FULL_N);
+	usb_irq = IRQ_GPIO(GPIO_NR_LOOX720_USB_DETECT_N);
 	
-	if(gpio_request(GPIO_NR_LOOX720_AC_IN_N, "AC detect") != 0) {
-		printk( KERN_ERR "Unable to request AC detect GPIO.\n" );
-		return -ENODEV;
-	}
+	ac_connected = gpio_get_value(GPIO_NR_LOOX720_AC_IN_N) == 0;
+	usb_connected = gpio_get_value(GPIO_NR_LOOX720_USB_DETECT_N) == 0;
+	battery_full = gpio_get_value(GPIO_NR_LOOX720_BATTERY_FULL_N) == 0;
 	
-	if(gpio_request(GPIO_NR_LOOX720_BATTERY_FULL_N, "Battery full") != 0) {
-		printk( KERN_ERR "Unable to request Battery full GPIO.\n" );
-		gpio_free(GPIO_NR_LOOX720_AC_IN_N);
-		return -ENODEV;
-	}
-	
-	printk( KERN_INFO "AC: connected=%d\n", connected );
-        if (request_irq( ac_irq, ac_isr, IRQF_DISABLED,
+	printk( KERN_INFO "AC: connected=%d\n", ac_connected );
+        if (request_irq( ac_irq, ac_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			    "Loox 720 AC Detect", NULL ) != 0) {
 		printk( KERN_ERR "Unable to configure AC detect interrupt.\n" );
-		gpio_free(GPIO_NR_LOOX720_AC_IN_N);
-		gpio_free(GPIO_NR_LOOX720_BATTERY_FULL_N);
 		return -ENODEV;
 	}
 	
-	if (request_irq( battery_irq, battery_isr, IRQF_DISABLED, "Loox 720 Battery Full", NULL) != 0) 
+	printk( KERN_INFO "USB: connected=%d\n", usb_connected );
+	if (request_irq( usb_irq, usb_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "Loox 720 USB Detect", NULL) != 0) 
+	{
+		printk( KERN_ERR "Unable to configure USB detect interrupt.\n" );
+		free_irq( ac_irq, NULL );
+		return -ENODEV;
+	}
+	
+	if (request_irq( battery_irq, battery_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "Loox 720 Battery Full", NULL) != 0) 
 	{
 		printk( KERN_ERR "Unable to configure battery-full detect interrupt.\n" );
 		free_irq( ac_irq, NULL );
-		gpio_free(GPIO_NR_LOOX720_AC_IN_N);
-		gpio_free(GPIO_NR_LOOX720_BATTERY_FULL_N);
+		free_irq( usb_irq, NULL );
 		return -ENODEV;
 	}
-
-	if (connected)
-	    set_irq_type( ac_irq, IRQT_RISING ); 
-	else
-	    set_irq_type( ac_irq, IRQT_FALLING ); 
-	    
-	if (battery_full)
-	    set_irq_type( battery_irq, IRQT_RISING );
-	else
-	    set_irq_type( battery_irq, IRQT_FALLING );
 	
+	update_battery_chip();
 	update_battery_charging();
 
 #if 0
@@ -438,8 +445,8 @@ loox720_core_remove( struct platform_device *dev )
 	    free_irq( ac_irq, NULL );
 	if (battery_irq != 0xffffffff)
 	    free_irq( battery_irq, NULL );
-	gpio_free(GPIO_NR_LOOX720_AC_IN_N);
-	gpio_free(GPIO_NR_LOOX720_BATTERY_FULL_N);
+	if (usb_irq != 0xffffffff)
+	    free_irq( usb_irq, NULL );
 	return 0;
 }
 
@@ -470,7 +477,7 @@ loox720_core_exit( void )
 module_init( loox720_core_init );
 module_exit( loox720_core_exit );
 
-MODULE_AUTHOR("Giuseppe Zompatori <giuseppe_zompatori@yahoo.it>");
+MODULE_AUTHOR("Piotr Czechowicz, Tomasz Figa");
 MODULE_DESCRIPTION("Loox 720 Core Hardware Driver");
 MODULE_LICENSE("GPL");
 

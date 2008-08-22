@@ -66,9 +66,9 @@ static void loox720_lcd_power(int on, struct fb_var_screeninfo *var)
 		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 1);
 	} else {
 		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 0);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 0);
 		loox720_egpio_set_bit(LOOX720_CPLD_LCD_CONSOLE_BIT, 0);
 		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT2, 0);
+		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 0);
 	}
 }
 

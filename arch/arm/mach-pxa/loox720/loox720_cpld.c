@@ -61,10 +61,13 @@ static struct cpld_bit loox720_cpld_bits[] =
 	.bit   = LOOX720_CPLD_BACKLIGHT_BIT,
 	.value = 1
     },
+// NOTE: WinCE enables it only after plugging an USB cable or AC charger
+/*
     {	
 	.bit   = LOOX720_CPLD_BATTERY_BIT,
 	.value = 1    
     },
+*/
 // NOTE: WinCE doesn't use them... tom3q
 /*
     {
