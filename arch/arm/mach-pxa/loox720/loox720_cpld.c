@@ -376,7 +376,10 @@ static int __init loox720_cpld_init(void)
     return 0;
 }
 
-/* static void __exit loox720_cpld_exit(void)
+/*
+NOTE: Do we want the CPLD driver to be unloadable? tom3q
+
+static void __exit loox720_cpld_exit(void)
 {
     if (cpld_mem)
     {
@@ -404,11 +407,17 @@ static int __init loox720_cpld_init(void)
         iounmap(cpld_mem);
         
 	gpio_free(GPIO_NR_LOOX720_CPLD_INT);
-} */
+}
 
+module_init( loox720_cpld_init );
+module_exit( loox720_cpld_exit );
+
+MODULE_AUTHOR("Piotr Czechowicz & Tomasz Figa & Jan Rinze Peterzon");
+MODULE_DESCRIPTION("Loox 720 CPLD driver");
+MODULE_LICENSE("GPL");
+*/
+
+/*
+NOTE: see include/linux/init.h for order of initcalls.
+*/
 subsys_initcall( loox720_cpld_init );
-//exitcall( loox720_cpld_exit );
-
-//MODULE_AUTHOR("Piotr Czechowicz & Tomasz Figa & Jan Rinze Peterzon");
-//MODULE_DESCRIPTION("Loox 720 CPLD driver");
-//MODULE_LICENSE("GPL");
