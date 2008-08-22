@@ -61,14 +61,12 @@ static struct cpld_bit loox720_cpld_bits[] =
 	.bit   = LOOX720_CPLD_BACKLIGHT_BIT,
 	.value = 1
     },
-//    {
-//	.bit   = LOOX720_CPLD_SD_BIT,
-//	.value = 1
-//    },
     {	
 	.bit   = LOOX720_CPLD_BATTERY_BIT,
 	.value = 1    
     },
+// NOTE: WinCE doesn't use them... tom3q
+/*
     {
 	.bit   = LOOX720_CPLD_LED1_EN_1,
 	.value = 1
@@ -89,6 +87,8 @@ static struct cpld_bit loox720_cpld_bits[] =
 	.bit   = LOOX720_CPLD_LED2_EN_3,
 	.value = 1
     },
+*/
+// NOTE: WinCE keeps this bit HIGH, and that's why i added it here... tom3q
     {
     	.bit	= LOOX720_CPLD_CF_RESET_N,
     	.value = 1
@@ -376,7 +376,7 @@ static int __init loox720_cpld_init(void)
     return 0;
 }
 
-static void __exit loox720_cpld_exit(void)
+/* static void __exit loox720_cpld_exit(void)
 {
     if (cpld_mem)
     {
@@ -404,11 +404,11 @@ static void __exit loox720_cpld_exit(void)
         iounmap(cpld_mem);
         
 	gpio_free(GPIO_NR_LOOX720_CPLD_INT);
-}
+} */
 
-module_init( loox720_cpld_init );
-module_exit( loox720_cpld_exit );
+subsys_initcall( loox720_cpld_init );
+//exitcall( loox720_cpld_exit );
 
-MODULE_AUTHOR("Piotr Czechowicz & Tomasz Figa & Jan Rinze Peterzon");
-MODULE_DESCRIPTION("Loox 720 CPLD driver");
-MODULE_LICENSE("GPL");
+//MODULE_AUTHOR("Piotr Czechowicz & Tomasz Figa & Jan Rinze Peterzon");
+//MODULE_DESCRIPTION("Loox 720 CPLD driver");
+//MODULE_LICENSE("GPL");
