@@ -81,16 +81,16 @@ static void	loox720_update_leds( void )
 	{
 	    // blue
 	    case 0x1: mask |= 0xE00; break;
-	    case 0x5: mask |= 0x8A00; break;
+	    case 0x5: mask |= 0x8A04; break;
 	    case 0xD: mask |= 0x8E00; break;
 	    
 	    // green
 	    case 0x2: mask |= 0xF00; break;
-	    case 0x6: mask |= 0x8900; break;
+	    case 0x6: mask |= 0xA908; break;
 	    case 0xE: mask |= 0x8F00; break;
 	    
 	    // both
-	    case 0x7: mask |= 0x8800; break;
+	    case 0x7: mask |= 0xA80C; break;
 	    
 	    default: mask |= 0x300; break;
 	}

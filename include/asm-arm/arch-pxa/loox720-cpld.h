@@ -62,15 +62,20 @@ CPLD output bits numbers
 #define LOOX720_CPLD_CF_3V3_BIT			140
 #define LOOX720_CPLD_BATTERY_BIT		144
 #define LOOX720_CPLD_USB_PULLUP_BIT		145
-#define LOOX720_CPLD_LCD_CONSOLE_BIT		146	/* If it's low, then FB console doesn't show up */
-#define LOOX720_CPLD_LCD_BIT			147
+#define LOOX720_CPLD_LCD_CONSOLE_BIT		146 // Blanking: 4rd Unblanking: 2nd
+#define LOOX720_CPLD_LCD_BIT			147 // Blanking: 3rd Unblanking: 3rd
+/*
+
+These looks like a piece of garbage, because wince doesn't use them...
+
 #define LOOX720_CPLD_LED2_EN_1			148
 #define LOOX720_CPLD_LED2_EN_2			149
 #define LOOX720_CPLD_LED2_EN_3			150
 #define LOOX720_CPLD_LED1_EN_1			152
 #define LOOX720_CPLD_LED1_EN_2			153
-#define LOOX720_CPLD_LCD_COLOR_BIT		160
-#define LOOX720_CPLD_LCD_BIT2			161
+*/
+#define LOOX720_CPLD_LCD_COLOR_BIT		160 // Blanking: 2nd Unblanking: 4th
+#define LOOX720_CPLD_LCD_BIT2			161 // Blanking: 5th Unblanking: 1st
 #define LOOX720_CPLD_CF_RESET			162
 #define LOOX720_CPLD_SERIAL_BIT			163
 #define LOOX720_CPLD_CS1			176
@@ -87,7 +92,7 @@ CPLD output bits numbers
 #define LOOX720_CPLD_SD_BIT			225
 #define LOOX720_CPLD_CAMERA_RESET		226
 #define LOOX720_CPLD_CF_5V_BIT			241
-#define LOOX720_CPLD_BACKLIGHT_BIT		242
+#define LOOX720_CPLD_BACKLIGHT_BIT		242 // Blanking: 1st Unblanking: 5th
 
 /*
 CPLD input bitmasks definitions
