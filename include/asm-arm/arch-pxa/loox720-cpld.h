@@ -1,7 +1,17 @@
 /*
  * include/asm/arm/arch-pxa/loox720-cpld.h
  *
- * Authors: Piotr Czechowicz <p.czechowicz@admitech.pl>
+ * Authors: 	Piotr Czechowicz 	<p.czechowicz@admitech.pl>
+ *		Tomasz Figa		<tomasz.figa@gmail.com>
+ *		Jan Rinze Peterzon	<janrinze@gmail.com>
+ *
+ * Loox 720 CPLD structure:
+ * 16 registers (16-bit) located at physical address (0x10000000):
+ * reg 1 	- interrupt status
+ * reg 2 	- interrupt mask
+ * reg 3 	- input pins
+ * regs 4-7 	- unknown
+ * regs 8-16 	- output pins
  *
  */
 
@@ -40,7 +50,7 @@ Bitmasks of LED modes in LEDs' cache.
 #define LOOX720_LED2_BLINK2	  	128
 
 /*
-Bitmasks of bits in reg #4:
+Bitmasks of bits in reg #8:
 */
 
 #define LOOX720_CPLD_LED1_BIT_A 256
@@ -59,7 +69,17 @@ Bitmasks of bits in reg #4:
 CPLD output bits numbers
 */
 
+#define LOOX720_CPLD_LED_BIT_1			132
+#define LOOX720_CPLD_LED_BIT_2			133
+#define LOOX720_CPLD_LED_BIT_3			134
+#define LOOX720_CPLD_LED_BIT_4			135
+#define LOOX720_CPLD_LED_BIT_5			136
+#define LOOX720_CPLD_LED_BIT_6			137
+#define LOOX720_CPLD_LED_BIT_7			138
+#define LOOX720_CPLD_LED_BIT_8			139
 #define LOOX720_CPLD_CF_3V3_BIT			140
+#define LOOX720_CPLD_LED_BIT_9			142
+#define LOOX720_CPLD_LED_BIT_10			143
 #define LOOX720_CPLD_BATTERY_BIT		144
 #define LOOX720_CPLD_USB_PULLUP_BIT		145
 #define LOOX720_CPLD_LCD_CONSOLE_BIT		146 // Blanking: 4rd Unblanking: 2nd
