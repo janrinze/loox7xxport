@@ -41,6 +41,11 @@ inline void write_reg16(acx_device_t *adev, unsigned int offset, u16 val)
     return adev->ops->write_reg16(adev, offset, val);
 }
 
+inline u8 read_reg8(acx_device_t *adev, unsigned int offset)
+{
+    return adev->ops->read_reg8(adev, offset);
+}
+
 #define NO_AUTO_INCREMENT	1
 
 void
@@ -98,7 +103,7 @@ acx_l_reset_mac(acx_device_t *adev)
 **
 ** Origin: Standard csum + Read IO
 */
-static int acx_s_validate_fw(acx_device_t * adev, const firmware_image_t *fw_image,
+int acx_s_validate_fw(acx_device_t * adev, const firmware_image_t *fw_image,
 		     u32 offset)
 {
 	u32 sum, v32, w32;
@@ -251,7 +256,7 @@ int acx_s_upload_fw(acx_device_t * adev)
 **
 ** Standard csum implementation + write to IO
 */
-static int acx_s_write_fw(acx_device_t * adev, const firmware_image_t *fw_image,
+int acx_s_write_fw(acx_device_t * adev, const firmware_image_t *fw_image,
 		  u32 offset)
 {
 	int len, size;
@@ -329,3 +334,201 @@ int acx_s_verify_init(acx_device_t * adev)
 	return result;
 }
 
+/***********************************************************************
+** acxmem_s_read_phy_reg
+**
+** Messing with rx/tx disabling and enabling here
+** (write_reg32(adev, IO_ACX_ENABLE, 0b000000xx)) kills traffic
+*/
+int
+acxgen_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf)
+{
+	int result = NOT_OK;
+	int count;
+
+	FN_ENTER;
+
+	write_reg32(adev, IO_ACX_PHY_ADDR, reg);
+	write_flush(adev);
+	write_reg32(adev, IO_ACX_PHY_CTL, 2);
+
+	count = 0xffff;
+	while (read_reg32(adev, IO_ACX_PHY_CTL)) {
+		/* scheduling away instead of CPU burning loop
+		 * doesn't seem to work here at all:
+		 * awful delay, sometimes also failure.
+		 * Doesn't matter anyway (only small delay). */
+		if (unlikely(!--count)) {
+			printk("%s: timeout waiting for phy read\n",
+							wiphy_name(adev->ieee->wiphy));
+			*charbuf = 0;
+			goto fail;
+		}
+		cpu_relax();
+	}
+
+	log(L_DEBUG, "count was %u\n", count);
+	*charbuf = read_reg8(adev, IO_ACX_PHY_DATA);
+
+	log(L_DEBUG, "radio PHY at 0x%04X = 0x%02X\n", *charbuf, reg);
+	result = OK;
+	goto fail; /* silence compiler warning */
+fail:
+	FN_EXIT1(result);
+	return result;
+}
+
+
+/***********************************************************************
+*/
+int
+acxgen_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value)
+{
+        int count;
+	FN_ENTER;
+
+	/* mprusko said that 32bit accesses result in distorted sensitivity
+	 * on his card. Unconfirmed, looks like it's not true (most likely since we
+	 * now properly flush writes). */
+	write_reg32(adev, IO_ACX_PHY_DATA, value);
+	write_reg32(adev, IO_ACX_PHY_ADDR, reg);
+	write_flush(adev);
+	write_reg32(adev, IO_ACX_PHY_CTL, 1);
+	write_flush(adev);
+
+	count = 0xffff;
+	while (read_reg32(adev, IO_ACX_PHY_CTL)) {
+		/* scheduling away instead of CPU burning loop
+		 * doesn't seem to work here at all:
+		 * awful delay, sometimes also failure.
+		 * Doesn't matter anyway (only small delay). */
+		if (unlikely(!--count)) {
+			printk("%s: timeout waiting for phy read\n",
+							wiphy_name(adev->ieee->wiphy));
+			goto fail;
+		}
+		cpu_relax();
+	}
+
+	log(L_DEBUG, "radio PHY write 0x%02X at 0x%04X\n", value, reg);
+ fail:
+	FN_EXIT1(OK);
+	return OK;
+}
+
+/***************************************************************
+** acxpci_l_alloc_tx
+** Actually returns a txdesc_t* ptr
+**
+** FIXME: in case of fragments, should allocate multiple descrs
+** after figuring out how many we need and whether we still have
+** sufficiently many.
+*/
+tx_t *acxgen_l_alloc_tx(acx_device_t * adev)
+{
+	struct txdesc *txdesc;
+	unsigned head;
+	u8 ctl8;
+
+	FN_ENTER;
+printk("acx: l_alloc_tx :%X\n", (unsigned int)adev);
+
+	if (unlikely(!adev->tx_free)) {
+		printk("acx: BUG: no free txdesc left\n");
+		txdesc = NULL;
+		goto end;
+	}
+
+	head = adev->tx_head;
+	txdesc = adev->ops->get_txdesc(adev, head);
+	ctl8 = txdesc->Ctl_8;
+	
+printk("acx: txdesc: %X\n", (unsigned int) txdesc);
+
+	/* 2005-10-11: there were several bug reports on this happening
+	 ** but now cause seems to be understood & fixed */
+	if (unlikely(DESC_CTL_HOSTOWN != (ctl8 & DESC_CTL_ACXDONE_HOSTOWN))) {
+		/* whoops, descr at current index is not free, so probably
+		 * ring buffer already full */
+		printk("acx: BUG: tx_head:%d Ctl8:0x%02X - failed to find "
+		       "free txdesc\n", head, ctl8);
+		txdesc = NULL;
+		goto end;
+	}
+
+	/* Needed in case txdesc won't be eventually submitted for tx */
+	txdesc->Ctl_8 = DESC_CTL_ACXDONE_HOSTOWN;
+
+	adev->tx_free--;
+	log(L_BUFT, "tx: got desc %u, %u remain\n", head, adev->tx_free);
+	/* Keep a few free descs between head and tail of tx ring.
+	 ** It is not absolutely needed, just feels safer */
+	if (adev->tx_free < TX_STOP_QUEUE) {
+		log(L_BUF, "stop queue (%u tx desc left)\n", adev->tx_free);
+		acx_stop_queue(adev->ieee, NULL);
+	}
+
+	/* returning current descriptor, so advance to next free one */
+	adev->tx_head = (head + 1) % TX_CNT;
+      end:
+	FN_EXIT0;
+
+	return (tx_t *) txdesc;
+}
+
+/***********************************************************************
+*/
+int acx100gen_s_set_tx_level(acx_device_t * adev, u8 level_dbm)
+{
+	/* since it can be assumed that at least the Maxim radio has a
+	 * maximum power output of 20dBm and since it also can be
+	 * assumed that these values drive the DAC responsible for
+	 * setting the linear Tx level, I'd guess that these values
+	 * should be the corresponding linear values for a dBm value,
+	 * in other words: calculate the values from that formula:
+	 * Y [dBm] = 10 * log (X [mW])
+	 * then scale the 0..63 value range onto the 1..100mW range (0..20 dBm)
+	 * and you're done...
+	 * Hopefully that's ok, but you never know if we're actually
+	 * right... (especially since Windows XP doesn't seem to show
+	 * actual Tx dBm values :-P) */
+
+	/* NOTE: on Maxim, value 30 IS 30mW, and value 10 IS 10mW - so the
+	 * values are EXACTLY mW!!! Not sure about RFMD and others,
+	 * though... */
+	static const u8 dbm2val_maxim[21] = {
+		63, 63, 63, 62,
+		61, 61, 60, 60,
+		59, 58, 57, 55,
+		53, 50, 47, 43,
+		38, 31, 23, 13,
+		0
+	};
+	static const u8 dbm2val_rfmd[21] = {
+		0, 0, 0, 1,
+		2, 2, 3, 3,
+		4, 5, 6, 8,
+		10, 13, 16, 20,
+		25, 32, 41, 50,
+		63
+	};
+	const u8 *table;
+
+	switch (adev->radio_type) {
+	case RADIO_MAXIM_0D:
+		table = &dbm2val_maxim[0];
+		break;
+	case RADIO_RFMD_11:
+	case RADIO_RALINK_15:
+		table = &dbm2val_rfmd[0];
+		break;
+	default:
+		printk("%s: unknown/unsupported radio type, "
+		       "cannot modify tx power level yet!\n", wiphy_name(adev->ieee->wiphy));
+		return NOT_OK;
+	}
+	printk("%s: changing radio power level to %u dBm (%u)\n",
+	       wiphy_name(adev->ieee->wiphy), level_dbm, table[level_dbm]);
+	acxgen_s_write_phy_reg(adev, 0x11, table[level_dbm]);
+	return OK;
+}

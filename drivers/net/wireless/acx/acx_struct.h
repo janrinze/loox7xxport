@@ -1197,6 +1197,7 @@ struct {
     void (*write_flush)(acx_device_t *adev);
     u16 (*read_reg16)(acx_device_t *adev, unsigned int offset);
     void (*write_reg16)(acx_device_t *adev, unsigned int offset, u16 val);
+    u8 (*read_reg8)(acx_device_t *adev, unsigned int offset);
 
     struct device * (*get_dev)(acx_device_t *adev);
     
@@ -1209,17 +1210,19 @@ struct {
     void (*free_desc_queues)(acx_device_t *adev);
     int (*proc_eeprom_output)(char *p, acx_device_t *adev);
     void (*set_interrupt_mask)(acx_device_t *adev);
-    int (*acx100pci_s_set_tx_level)(acx_device_t *adev, u8 level_dbm);
+//    int (*acx100pci_s_set_tx_level)(acx_device_t *adev, u8 level_dbm);
+//    int (*s_set_tx_level)(acx_device_t *adev, u8 level_dbm);
     int (*s_upload_radio)(acx_device_t *adev);
     void (*l_power_led)(acx_device_t *adev, int enable);
-    int (*s_read_phy_reg)(acx_device_t *adev, u32 reg, u8 *charbuf);
-    int (*s_write_phy_reg)(acx_device_t *adev, u32 reg, u8 value);
-    tx_t* (*l_alloc_tx)(acx_device_t *adev);
+//    int (*s_read_phy_reg)(acx_device_t *adev, u32 reg, u8 *charbuf);
+//    int (*s_write_phy_reg)(acx_device_t *adev, u32 reg, u8 value);
+//    tx_t* (*l_alloc_tx)(acx_device_t *adev);
+    txdesc_t* (*get_txdesc)(acx_device_t *adev, int index);
+    
     void (*l_dealloc_tx)(tx_t *tx_opaque);
     void* (*l_get_txbuf)(acx_device_t *adev, tx_t *tx_opaque);
     void (*l_tx_data)(acx_device_t *adev, tx_t *tx_opaque, int len, struct ieee80211_tx_control *ieeectl, struct sk_buff *skb);
     void (*put_devname)(acx_device_t *adev, ethtool_drvinfo_t *info);
-    int (*s_set_tx_level)(acx_device_t *adev, u8 level_dbm);
 
     void (*handle_info_irq)(acx_device_t * adev);
     void (*interrupt_tasklet)(struct work_struct *work);

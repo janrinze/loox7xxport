@@ -477,6 +477,8 @@ acx_e_get_stats(struct ieee80211_hw *hw,
 {
 	acx_device_t *adev = ieee2adev(hw);
 	unsigned long flags;
+printk("acx: GET_STATS\n");
+return 0;
 	acx_lock(adev, flags);
 	memcpy(stats, &adev->ieee_stats, sizeof(*stats));
 	acx_unlock(adev, flags);
@@ -1441,67 +1443,7 @@ void acx_free_modes(acx_device_t * adev)
 //        adev->modes = NULL;
 }
 
-#define RATETAB_ENT(_rate, _rateid, _flags) \
-	{							\
-		.bitrate	= (_rate),				\
-		.hw_value	= (_rateid),				\
-		.hw_value_short = (_rateid),				\
-		.flags  = (_flags),				\
-	}
-
-
-static struct ieee80211_rate __acx_ratetable[] = {
-		 RATETAB_ENT(10,  RATE111_1,  IEEE80211_RATE_SHORT_PREAMBLE),
-		 RATETAB_ENT(20,  RATE111_2,  IEEE80211_RATE_SHORT_PREAMBLE),
-		 RATETAB_ENT(55,  RATE111_5,  IEEE80211_RATE_SHORT_PREAMBLE),
-		 RATETAB_ENT(110, RATE111_11, IEEE80211_RATE_SHORT_PREAMBLE),
-		 RATETAB_ENT(60,  RATE111_6,  0),
-		 RATETAB_ENT(90,  RATE111_9,  0),
-		 RATETAB_ENT(120, RATE111_12, 0),
-		 RATETAB_ENT(180, RATE111_18, 0),
-		 RATETAB_ENT(240, RATE111_24, 0),
-		 RATETAB_ENT(360, RATE111_36, 0),
-		 RATETAB_ENT(480, RATE111_48, 0),
-		 RATETAB_ENT(540, RATE111_54, 0),
-	};
-
-#define acx_b_ratetable		(__acx_ratetable + 0)
-#define acx_b_ratetable_size	4
-#define acx_g_ratetable		(__acx_ratetable + 0)
-#define acx_g_ratetable_size	12
-
-#define CHANTAB_ENT(_chanid, _freq) \
-	{                                                       \
-		.hw_value   = (_chanid),                            \
-		.center_freq   = (_freq),                              \
-	}
-
-/*		.val    = (_chanid),                            \
-		.flag   = IEEE80211_CHAN_W_SCAN |               \
-			  IEEE80211_CHAN_W_ACTIVE_SCAN |        \
-			  IEEE80211_CHAN_W_IBSS,                \
-		.power_level    = 0xf,                         \
-		.antenna_max    = 0xFF,                         \*/
-
-static struct ieee80211_channel channels[] = {
-		 CHANTAB_ENT(1, 2412),
-		 CHANTAB_ENT(2, 2417),
-		 CHANTAB_ENT(3, 2422),
-		 CHANTAB_ENT(4, 2427),
-		 CHANTAB_ENT(5, 2432),
-		 CHANTAB_ENT(6, 2437),
-		 CHANTAB_ENT(7, 2442),
-		 CHANTAB_ENT(8, 2447),
-		 CHANTAB_ENT(9, 2452),
-		 CHANTAB_ENT(10, 2457),
-		 CHANTAB_ENT(11, 2462),
-		 CHANTAB_ENT(12, 2467),
-		 CHANTAB_ENT(13, 2472),
-	};
-
-
-/**************8
-static struct ieee80211_rate p54_rates[] = {
+static struct ieee80211_rate __acx_rates[] = {
 	{ .bitrate = 10, .hw_value = 0, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 20, .hw_value = 1, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 55, .hw_value = 2, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -1516,7 +1458,12 @@ static struct ieee80211_rate p54_rates[] = {
 	{ .bitrate = 540, .hw_value = 11, },
 };
 
-static struct ieee80211_channel p54_channels[] = {
+#define acx_b_ratetable		(__acx_rates + 0)
+#define acx_b_ratetable_size	4
+#define acx_g_ratetable		(__acx_rates + 0)
+#define acx_g_ratetable_size	12
+
+static struct ieee80211_channel channels[] = {
 	{ .center_freq = 2412, .hw_value = 1, },
 	{ .center_freq = 2417, .hw_value = 2, },
 	{ .center_freq = 2422, .hw_value = 3, },
@@ -1532,61 +1479,16 @@ static struct ieee80211_channel p54_channels[] = {
 	{ .center_freq = 2472, .hw_value = 13, },
 	{ .center_freq = 2484, .hw_value = 14, },
 };
-*/
+
 
 static struct ieee80211_supported_band band_2GHz = {
 	.channels = channels,
 	.n_channels = ARRAY_SIZE(channels),
-	.bitrates = __acx_ratetable,
-	.n_bitrates = ARRAY_SIZE(__acx_ratetable),
+	.bitrates = __acx_rates,
+	.n_bitrates = ARRAY_SIZE(__acx_rates),
 };
 
-
-
-
 #define acx_chantable_size ARRAY_SIZE(channels)
-
-/*
-static int acx_setup_modes_bphy(acx_device_t * adev)
-{
-	int err = 0;
-	struct ieee80211_hw *hw = adev->ieee;
-	struct ieee80211_hw_mode *mode;
-
-	FN_ENTER;
-
-	mode = &adev->modes[0];
-	mode->mode = MODE_IEEE80211B;
-	mode->num_channels = acx_chantable_size;
-	mode->channels = channels;
-	mode->num_rates = acx_b_ratetable_size;
-	mode->rates = acx_b_ratetable;
-	err = ieee80211_register_hwmode(hw,mode);
-
-	FN_EXIT1(err);
-	return err;
-}
-
-static int acx_setup_modes_gphy(acx_device_t * adev)
-{
-	int err = 0;
-	struct ieee80211_hw *hw = adev->ieee;
-	struct ieee80211_hw_mode *mode;
-
-	FN_ENTER;
-	
-	mode = &adev->modes[1];
-	mode->mode = MODE_IEEE80211G;
-	mode->num_channels = acx_chantable_size;
-	mode->channels = channels;
-	mode->num_rates = acx_g_ratetable_size;
-	mode->rates = acx_g_ratetable;
-	err = ieee80211_register_hwmode(hw,mode);
-
-	FN_EXIT1(err);
-	return err;
-}
-*/
 
 int acx_setup_modes(acx_device_t * adev)
 {
@@ -1791,6 +1693,8 @@ acx_i_set_multicast_list(struct ieee80211_hw *hw,
 	acx_device_t *adev = ieee2adev(hw);
 	unsigned long flags;
 
+printk("acx: configure_filter...\n");
+
 	FN_ENTER;
 
 	acx_lock(adev, flags);
@@ -1817,7 +1721,8 @@ acx_i_set_multicast_list(struct ieee80211_hw *hw,
 	}
 
 	/* cannot update card settings directly here, atomic context */
-	acx_schedule_task(adev, ACX_AFTER_IRQ_UPDATE_CARD_CFG);
+//!!!!	acx_schedule_task(adev, ACX_AFTER_IRQ_UPDATE_CARD_CFG);
+printk("acx: SKIPPING SCHEDULE_TASK\n");
 
 	acx_unlock(adev, flags);
 
@@ -2046,12 +1951,16 @@ static int acx100_s_create_dma_regions(acx_device_t * adev)
 	int res = NOT_OK;
 	u32 tx_queue_start, rx_queue_start;
 
+printk("acx: create_dma_regions\n");
+
 	FN_ENTER;
 
 	/* read out the acx100 physical start address for the queues */
 	if (OK != acx_s_interrogate(adev, &memmap, ACX1xx_IE_MEMORY_MAP)) {
 		goto fail;
 	}
+
+printk("acx: cdr: memmap.QueueStart: %p\n", memmap.QueueStart);
 
 	tx_queue_start = le32_to_cpu(memmap.QueueStart);
 	rx_queue_start = tx_queue_start + TX_CNT * sizeof(txdesc_t);
@@ -2086,12 +1995,12 @@ static int acx100_s_create_dma_regions(acx_device_t * adev)
 		goto fail;
 	}
 
-	if (adev->ops && adev->ops->s_create_hostdesc_queues && adev->ops->create_desc_queues) {
+//	if (adev->ops && adev->ops->s_create_hostdesc_queues && adev->ops->create_desc_queues) {
 		/* sets the beginning of the rx descriptor queue, after the tx descrs */
 		if (OK != adev->ops->s_create_hostdesc_queues(adev))
 			goto fail;
 		adev->ops->create_desc_queues(adev, tx_queue_start, rx_queue_start);
-	}
+//	}
 
 	if (OK != acx_s_interrogate(adev, &memmap, ACX1xx_IE_MEMORY_MAP)) {
 		goto fail;
@@ -2113,7 +2022,7 @@ static int acx100_s_create_dma_regions(acx_device_t * adev)
 
       fail:
 	acx_s_mwait(1000);	/* ? */
-	if (adev->ops && adev->ops->free_desc_queues)
+//	if (adev->ops && adev->ops->free_desc_queues)
 		adev->ops->free_desc_queues(adev);
       end:
 	FN_EXIT1(res);
@@ -2328,7 +2237,7 @@ void acx_s_set_defaults(acx_device_t * adev)
 
 
 	/* set our global interrupt mask */
-	if (adev->ops && adev->ops->set_interrupt_mask)
+//	if (adev->ops && adev->ops->set_interrupt_mask)
 		adev->ops->set_interrupt_mask(adev);
 
 	adev->led_power = 1;	/* LED is active on startup */
@@ -2484,14 +2393,17 @@ static int acx111_s_set_tx_level(acx_device_t * adev, u8 level_dbm)
 	return acx_s_configure(adev, &tx_level, ACX1xx_IE_DOT11_TX_POWER_LEVEL);
 }
 
+int acx100gen_s_set_tx_level(acx_device_t * adev, u8 level_dbm);
+
 static int acx_s_set_tx_level(acx_device_t * adev, u8 level_dbm)
 {
 	if (IS_ACX111(adev)) {
 		return acx111_s_set_tx_level(adev, level_dbm);
 	}
-	if (adev->ops->s_set_tx_level) {
-		return adev->ops->s_set_tx_level(adev, level_dbm);
-	}
+//	if (adev->ops->s_set_tx_level) {
+//		return adev->ops->s_set_tx_level(adev, level_dbm);
+//	}
+	acx100gen_s_set_tx_level(adev,level_dbm);
 	return OK;
 }
 
@@ -2597,7 +2509,8 @@ acx_i_start_xmit(struct ieee80211_hw *hw,
 
 	int txresult = NOT_OK;
 
-return OK;
+printk("acx: START_XMIT\n");
+//return OK;
 
 	FN_ENTER;
 
@@ -3332,7 +3245,7 @@ int acx_s_init_mac(acx_device_t * adev)
 		printk("acx: init_packet_templates\n");
 		if (OK != acx_s_init_packet_templates(adev))
 			goto fail;
-		printk("acx: create_dma_regions\n");
+
 		if (OK != acx100_s_create_dma_regions(adev)) {
 			printk("%s: acx100_create_dma_regions FAILED\n",
 			       wiphy_name(adev->ieee->wiphy));
@@ -3540,7 +3453,6 @@ void acx_s_update_card_settings(acx_device_t *adev)
 		CLEAR_BIT(adev->get_mask, GETSET_STATION_ID);
 	}
 
-return;
 	if (adev->get_mask & GETSET_SENSITIVITY) {
 		if ((RADIO_RFMD_11 == adev->radio_type)
 		    || (RADIO_MAXIM_0D == adev->radio_type)
@@ -4028,8 +3940,9 @@ static void acx_s_after_interrupt_recalib(acx_device_t * adev)
 
 void acx_e_after_interrupt_task(struct work_struct *work)
 {
-       acx_device_t *adev = container_of(work, acx_device_t, after_interrupt_task);
-	unsigned int flags;
+	unsigned long flags;
+        acx_device_t *adev = container_of(work, acx_device_t, after_interrupt_task);
+	
 	FN_ENTER;
 	acx_lock(adev, flags);
 	if (!adev->after_interrupt_jobs || !adev->initialized)
@@ -4267,6 +4180,9 @@ int acx_add_interface(struct ieee80211_hw *ieee,
 	DECLARE_MAC_BUF(mac);
 #endif
 
+printk("acx: add_interface\n");
+//return OK;
+
 	FN_ENTER;
 	acx_lock(adev, flags);
 
@@ -4314,10 +4230,12 @@ void acx_remove_interface(struct ieee80211_hw *hw,
 {
 	acx_device_t *adev = ieee2adev(hw);
 	unsigned long flags;
-	FN_ENTER;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 	DECLARE_MAC_BUF(mac);
-#endif
+
+printk("acx: REMOVE INTERFACE\n");
+return;
+
+	FN_ENTER;
 
 	acx_lock(adev, flags);
 	if (conf->type == IEEE80211_IF_TYPE_MNTR) {
@@ -4332,14 +4250,8 @@ void acx_remove_interface(struct ieee80211_hw *hw,
 	acx_unlock(adev, flags);
 
 	printk(KERN_INFO "Virtual interface removed "
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-	       "(type: 0x%08X, ID: %d, MAC: "
-	       MAC_FMT ")\n",
-	       conf->type, conf->if_id, MAC_ARG(conf->mac_addr));
-#else
 	       "(type: 0x%08X, ID: %d, MAC: %s)\n",
 	       conf->type, 0 /* !!!! conf->if_id */, print_mac(mac, conf->mac_addr));
-#endif
 	FN_EXIT0;
 }
 /**
@@ -4394,9 +4306,11 @@ int acx_net_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 {
 	acx_device_t *adev = ieee2adev(hw);
 	unsigned long flags;
-#if 0
-	int change = 0;
-#endif
+
+
+printk("acx: acx_net_config\n");	
+//return OK;
+
 	FN_ENTER;
 
 	acx_lock(adev, flags);
@@ -4407,22 +4321,13 @@ int acx_net_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	}
 	if (conf->beacon_int != adev->beacon_interval)
 		adev->beacon_interval = conf->beacon_int;
-	if (conf->channel != adev->channel) {
-		acx_selectchannel(adev, conf->channel, 0/* !!!! conf->freq*/);
-/*		acx_schedule_task(adev,
-				  ACX_AFTER_IRQ_UPDATE_CARD_CFG
-*/				  /*+ ACX_AFTER_IRQ_RESTART_SCAN */ /*);*/
+
+	if (conf->channel->hw_value != adev->channel) {
+		acx_unlock(adev, flags);
+		acx_selectchannel(adev, conf->channel->hw_value, conf->channel->center_freq);
+		acx_lock(adev, flags);
 	}
-/*
-	if (conf->short_slot_time != adev->short_slot) {
-//                assert(phy->type == BCM43xx_PHYTYPE_G);
-		if (conf->short_slot_time)
-			acx_short_slot_timing_enable(adev);
-		else
-			acx_short_slot_timing_disable(adev);
-		acx_schedule_task(adev, ACX_AFTER_IRQ_UPDATE_CARD_CFG);
-	}
-*/
+
 	adev->tx_disabled = !conf->radio_enabled;
 	if (conf->power_level != 0 && adev->tx_level_dbm > 15){
 		adev->tx_level_dbm =  conf->power_level;
@@ -4430,21 +4335,14 @@ int acx_net_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 		//acx_schedule_task(adev, ACX_AFTER_IRQ_UPDATE_CARD_CFG);
 	}
 
-//FIXME: This does not seem to wake up:
-#if 0
-	if (conf->power_level == 0) {
-		if (radio->enabled)
-			bcm43xx_radio_turn_off(bcm);
-	} else {
-		if (!radio->enabled)
-			bcm43xx_radio_turn_on(bcm);
-	}
-#endif
-
 	//TODO: phymode
 	//TODO: antennas
 	if (adev->set_mask > 0)
+	{
+    		acx_unlock(adev, flags);
 		acx_s_update_card_settings(adev);
+		acx_lock(adev, flags);
+	}
 	acx_unlock(adev, flags);
 
 	FN_EXIT0;
@@ -4456,39 +4354,17 @@ int acx_net_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 **
 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-int acx_config_interface(struct ieee80211_hw* ieee, int if_id,
-			 struct ieee80211_if_conf *conf)
-{
-	acx_device_t *adev = ieee2adev(ieee);
-	unsigned long flags;
-	int err = -ENODEV;
-	FN_ENTER;
-	if (!adev->interface.operating)
-		goto err_out;
-	acx_lock(adev, flags);
-
-	if (adev->initialized)
-		acx_select_opmode(adev);
-
-	if ((conf->type != IEEE80211_IF_TYPE_MNTR)
-	    && (adev->interface.if_id == if_id)) {
-		if (conf->bssid)
-		{
-			adev->interface.bssid = conf->bssid;
- 	             	MAC_COPY(adev->bssid,conf->bssid);
-		}
-	}
-	if ((conf->type == IEEE80211_IF_TYPE_AP)
-	    && (adev->interface.if_id == if_id)) {
-#else
-extern int acx_config_interface(struct ieee80211_hw* ieee,
+int acx_config_interface(struct ieee80211_hw* ieee,
 				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf)
 {
 	acx_device_t *adev = ieee2adev(ieee);
 	unsigned long flags;
 	int err = -ENODEV;
+
+printk("acx: config_interface\n");
+//return OK;
+
 	FN_ENTER;
 	if (!adev->interface.operating)
 		goto err_out;
@@ -4507,7 +4383,6 @@ extern int acx_config_interface(struct ieee80211_hw* ieee,
 	}
 	if ((conf->type == IEEE80211_IF_TYPE_AP)
 	    && (adev->vif == vif)) {
-#endif
 		if ((conf->ssid_len > 0) && conf->ssid)
 		{
 			adev->essid_len = conf->ssid_len;
@@ -4543,6 +4418,9 @@ int acx_net_get_tx_stats(struct ieee80211_hw *hw,
 	struct ieee80211_tx_queue_stats_data *data;
 	int err = -ENODEV;
 
+printk("acx: GET_TX_STATS\n");
+return OK;
+
 	FN_ENTER;
 
 //        acx_lock(adev, flags);
@@ -4564,6 +4442,7 @@ int acx_net_conf_tx(struct ieee80211_hw *hw,
 		    int queue, const struct ieee80211_tx_queue_params *params)
 {
 	FN_ENTER;
+	printk("acx: NET_CONF_TX\n");
 //      TODO();
 	FN_EXIT0;
 	return 0;
@@ -4742,22 +4621,19 @@ int acx_key_write(acx_device_t * adev,
 **
 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-int acx_net_set_key(struct ieee80211_hw *ieee,
-		    set_key_cmd cmd,
-		    u8 * addr, struct ieee80211_key_conf *key, int aid)
-#else
 int acx_net_set_key(struct ieee80211_hw *ieee,
 		    enum set_key_cmd cmd, const u8 *local_addr,
 		    const u8 * addr, struct ieee80211_key_conf *key)
-#endif
 {
-//      return 0;
 	struct acx_device *adev = ieee2adev(ieee);
 	unsigned long flags;
 	u8 algorithm;
 	u8 index;
 	int err = -EINVAL;
+
+printk("acx: NET_SET_KEY\n");
+return OK;
+
 	FN_ENTER;
 //	TODO();
 	switch (key->alg) {
@@ -4994,7 +4870,8 @@ void
 acx_s_mwait(int ms)
 {
 	FN_ENTER;
-	msleep(ms);
+//	msleep(ms);
+	mdelay(ms);
 	FN_EXIT0;
 }
 

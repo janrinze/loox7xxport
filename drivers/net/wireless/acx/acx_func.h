@@ -465,26 +465,33 @@ int acxpci_s_upload_radio(acx_device_t *adev);
 */
 //int acxpci_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
 //int acxusb_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
+int acxgen_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf);
 static inline int
 acx_s_read_phy_reg(acx_device_t *adev, u32 reg, u8 *charbuf)
 {
-	return adev->ops->s_read_phy_reg(adev, reg, charbuf);
+//	return adev->ops->s_read_phy_reg(adev, reg, charbuf);
+	return acxgen_s_read_phy_reg(adev, reg, charbuf);
 }
 
 //int acxpci_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
 //int acxusb_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
+
+int acxgen_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value);
 static inline int
 acx_s_write_phy_reg(acx_device_t *adev, u32 reg, u8 value)
 {
-	return adev->ops->s_write_phy_reg(adev, reg, value);
+//	return adev->ops->s_write_phy_reg(adev, reg, value);
+	return acxgen_s_write_phy_reg(adev, reg, value);
 }
 
 //tx_t* acxpci_l_alloc_tx(acx_device_t *adev);
 //tx_t* acxusb_l_alloc_tx(acx_device_t *adev);
+tx_t* acxgen_l_alloc_tx(acx_device_t *adev);
 static inline tx_t*
 acx_l_alloc_tx(acx_device_t *adev)
 {
-	return adev->ops->l_alloc_tx(adev);
+//	return adev->ops->l_alloc_tx(adev);
+	return acxgen_l_alloc_tx(adev);
 }
 
 //void acxusb_l_dealloc_tx(tx_t *tx_opaque);
