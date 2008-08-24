@@ -34,8 +34,8 @@
  * GPIOs operating as Application-Specific GPIO
  */
 
-#define GPIO_NR_LOOX720_KEY_ON			0 // IN - sure - not machine specific
-#define GPIO_NR_LOOX720_GP_RST_N		1 // IN - sure - not machine specific
+#define GPIO_NR_LOOX720_KEY_ON			0 // IN - sure - the power button
+#define GPIO_NR_LOOX720_GP_RST_N		1 // IN - sure - the reset button
 #define GPIO_NR_LOOX720_UNK_2			2 // UNKNOWN IN
 #define GPIO_NR_LOOX720_PWR_SCL			3 // UNKNOWN OUT
 #define GPIO_NR_LOOX720_PWR_SDA			4 // UNKNOWN OUT
