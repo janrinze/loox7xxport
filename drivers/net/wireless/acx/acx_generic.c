@@ -441,9 +441,13 @@ printk("acx: l_alloc_tx :%X\n", (unsigned int)adev);
 
 	head = adev->tx_head;
 	txdesc = adev->ops->get_txdesc(adev, head);
-	ctl8 = txdesc->Ctl_8;
-	
 printk("acx: txdesc: %X\n", (unsigned int) txdesc);
+//	ctl8 = txdesc->Ctl_8;
+
+	ctl8 = adev->ops->read_slavemem8 (adev, (u32) &(txdesc->Ctl_8));
+
+printk("acx: Ctl_8: %u\n", (unsigned int) ctl8);
+	
 
 	/* 2005-10-11: there were several bug reports on this happening
 	 ** but now cause seems to be understood & fixed */
@@ -457,7 +461,8 @@ printk("acx: txdesc: %X\n", (unsigned int) txdesc);
 	}
 
 	/* Needed in case txdesc won't be eventually submitted for tx */
-	txdesc->Ctl_8 = DESC_CTL_ACXDONE_HOSTOWN;
+//	txdesc->Ctl_8 = DESC_CTL_ACXDONE_HOSTOWN;
+	adev->ops->write_slavemem8 (adev, (u32) &(txdesc->Ctl_8), DESC_CTL_ACXDONE_HOSTOWN);
 
 	adev->tx_free--;
 	log(L_BUFT, "tx: got desc %u, %u remain\n", head, adev->tx_free);

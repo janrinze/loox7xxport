@@ -2417,6 +2417,7 @@ void acx_l_process_rxbuf(acx_device_t * adev, rxbuffer_t * rxbuf)
 	struct ieee80211_hdr *hdr;
 	u16 fc, buf_len;
 	hdr = acx_get_wlan_hdr(adev, rxbuf);
+printk("acx: l_process_rxbuf\n");
 	fc = le16_to_cpu(hdr->frame_control);
 	/* length of frame from control field to first byte of FCS */
 	buf_len = RXBUF_BYTES_RCVD(adev, rxbuf);
@@ -2532,8 +2533,9 @@ printk("acx: START_XMIT\n");
 	if (unlikely(!adev->initialized)) {
 		goto end;
 	}
-
+printk("acx: xmit1\n");
 	tx = acx_l_alloc_tx(adev);
+printk("acx: xmit2: %p\n", tx);
 
 	if (unlikely(!tx)) {
 		printk_ratelimited("%s: start_xmit: txdesc ring is full, "
@@ -2543,6 +2545,7 @@ printk("acx: START_XMIT\n");
 	}
 
 	txbuf = acx_l_get_txbuf(adev, tx);
+printk("acx: xmit3: %p\n", txbuf);
 
 	if (unlikely(!txbuf)) {
 		/* Card was removed */
@@ -2553,6 +2556,7 @@ printk("acx: START_XMIT\n");
 	memcpy(txbuf, skb->data, skb->len);
 
 	acx_l_tx_data(adev, tx, skb->len, ctl,skb);
+printk("acx: xmit4 - OK\n");
 
 	txresult = OK;
 	adev->stats.tx_packets++;

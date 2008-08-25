@@ -1198,6 +1198,8 @@ struct {
     u16 (*read_reg16)(acx_device_t *adev, unsigned int offset);
     void (*write_reg16)(acx_device_t *adev, unsigned int offset, u16 val);
     u8 (*read_reg8)(acx_device_t *adev, unsigned int offset);
+    void (*write_slavemem8)(acx_device_t *adev, u32 slave_address, u8 val);
+    u8 (*read_slavemem8)(acx_device_t *adev, u32 slave_address);
 
     struct device * (*get_dev)(acx_device_t *adev);
     
@@ -1222,6 +1224,7 @@ struct {
     void (*l_dealloc_tx)(tx_t *tx_opaque);
     void* (*l_get_txbuf)(acx_device_t *adev, tx_t *tx_opaque);
     void (*l_tx_data)(acx_device_t *adev, tx_t *tx_opaque, int len, struct ieee80211_tx_control *ieeectl, struct sk_buff *skb);
+    void (*l_process_rxdesc)(acx_device_t *adev);
     void (*put_devname)(acx_device_t *adev, ethtool_drvinfo_t *info);
 
     void (*handle_info_irq)(acx_device_t * adev);

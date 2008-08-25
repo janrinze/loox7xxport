@@ -493,6 +493,71 @@ copy_from_slavemem (acx_device_t *adev, u8 *destination, u32 source, int count) 
   }
 }
 
+void
+chaincopy_from_slavemem (acx_device_t *adev, u8 *destination, u32 source, int count)
+{
+  u32 val;
+  u32 *data = (u32 *) destination;
+  static u8 aligned_destination[WLAN_A4FR_MAXLEN_WEP_FCS];
+  int saved_count = count;
+
+  /*
+   * Warn if the pointers don't look right.  Destination must fit in [23:5] with
+   * zero elsewhere and source should be 32 bit aligned.
+   * Turns out the network stack sends unaligned things, so fix them before
+   * copying to the ACX.
+   */
+  if ((source & 0x00ffffe0) != source) {
+    printk ("acx chaincopy: source block 0x%04x not aligned!\n", source);
+//    dump_acxmem (adev, 0, 0x10000);
+  }
+  if ((u32) destination & 3) {
+    //printk ("acx chaincopy: data destination not word aligned!\n");
+    data = (u32 *) aligned_destination;
+    if (count > sizeof aligned_destination) {
+	printk( KERN_ERR "chaincopy_from_slavemem overflow!\n" );
+	count = sizeof aligned_destination;
+    }
+  }
+
+  /*
+   * SLV_MEM_CTL[17:16] = memory block chain mode with auto-increment
+   * SLV_MEM_CTL[5:2] = offset to data portion = 1 word
+   */
+  val = (2 << 16) | (1 << 2);
+  writel (val, &DRV_DATA(adev)->iobase[ACX_SLV_MEM_CTL]);
+
+  /*
+   * SLV_MEM_CP[23:5] = start of 1st block
+   * SLV_MEM_CP[3:2] = offset to memblkptr = 0
+   */
+  val = source & 0x00ffffe0;
+  writel (val, &DRV_DATA(adev)->iobase[ACX_SLV_MEM_CP]);
+
+  /*
+   * SLV_MEM_ADDR[23:2] = SLV_MEM_CTL[5:2] + SLV_MEM_CP[23:5]
+   */
+  val = (source & 0x00ffffe0) + (1<<2);
+  writel (val, &DRV_DATA(adev)->iobase[ACX_SLV_MEM_ADDR]);
+
+  /*
+   * Read the data from the slave data register, rounding up to the end
+   * of the word containing the last byte (hence the > 0)
+   */
+  while (count > 0) {
+    *data++ = readl (&DRV_DATA(adev)->iobase[ACX_SLV_MEM_DATA]);
+    count -= 4;
+  }
+
+  /*
+   * If the destination wasn't aligned, we would have saved it in
+   * the aligned buffer, so copy it where it should go.
+   */
+  if ((u32) destination & 3) {
+    memcpy (destination, aligned_destination, saved_count);
+  }
+}
+
 /*
  * Copy to slave memory
  *
@@ -761,6 +826,60 @@ static void acxcs_s_down(struct ieee80211_hw *hw)
 	FN_EXIT0;
 }
 
+void
+acxcs_free_desc_queues(acx_device_t *adev)
+{
+#define ACX_FREE_QUEUE(size, ptr, phyaddr) \
+        if (ptr) { \
+                kfree(ptr); \
+                ptr = NULL; \
+                size = 0; \
+        }
+
+	FN_ENTER;
+
+	ACX_FREE_QUEUE(DRV_DATA(adev)->txhostdesc_area_size, DRV_DATA(adev)->txhostdesc_start, DRV_DATA(adev)->txhostdesc_startphy);
+	ACX_FREE_QUEUE(DRV_DATA(adev)->txbuf_area_size, DRV_DATA(adev)->txbuf_start, DRV_DATA(adev)->txbuf_startphy);
+
+	DRV_DATA(adev)->txdesc_start = NULL;
+
+	ACX_FREE_QUEUE(DRV_DATA(adev)->rxhostdesc_area_size, DRV_DATA(adev)->rxhostdesc_start, adev->rxhostdesc_startphy);
+	ACX_FREE_QUEUE(DRV_DATA(adev)->rxbuf_area_size, DRV_DATA(adev)->rxbuf_start, adev->rxbuf_startphy);
+
+	DRV_DATA(adev)->rxdesc_start = NULL;
+
+	FN_EXIT0;
+}
+
+/***********************************************************************
+** acxmem_s_delete_dma_regions
+*/
+static void
+acxcs_s_delete_dma_regions(acx_device_t *adev)
+{
+	unsigned long flags;
+
+	FN_ENTER;
+	/* disable radio Tx/Rx. Shouldn't we use the firmware commands
+	 * here instead? Or are we that much down the road that it's no
+	 * longer possible here? */
+	/*
+	 * slave memory interface really doesn't like this.
+	 */
+	/*
+	write_reg16(adev, IO_ACX_ENABLE, 0);
+	*/
+
+	msleep(100);
+
+	acx_lock(adev, flags);
+	acxcs_free_desc_queues(adev);
+	acx_unlock(adev, flags);
+
+	FN_EXIT0;
+}
+
+
 
 unsigned int acxcs_l_clean_txdesc(acx_device_t * adev)
 {
@@ -933,7 +1052,7 @@ static irqreturn_t acxcs_i_interrupt(int irq, void *dev_id)
 	register u16 irqtype;
 	u16 unmasked;
 	
-	printk("acx: INTERRUPT (adev=%X\n)\n", adev);
+	printk("acx: INTERRUPT (adev=%X)\n", adev);
 
 	if (!adev)
 		return IRQ_NONE;
@@ -949,6 +1068,7 @@ static irqreturn_t acxcs_i_interrupt(int irq, void *dev_id)
 		 * so don't do anything.
 		 * Not very clean, but other drivers do the same... */
 		log(L_IRQ, "IRQ type:FFFF - device removed? IRQ_NONE\n");
+printk("IRQ type:FFFF - device removed? IRQ_NONE\n");
 		goto none;
 	}
 
@@ -959,13 +1079,19 @@ static irqreturn_t acxcs_i_interrupt(int irq, void *dev_id)
 		log(L_IRQ,
 		    "IRQ type:%04X, mask:%04X - all are masked, IRQ_NONE\n",
 		    unmasked, DRV_DATA(adev)->irq_mask);
+printk("IRQ type:%04X, mask:%04X - all are masked, IRQ_NONE\n",
+		    unmasked, DRV_DATA(adev)->irq_mask);
 		goto none;
 	}
+
+printk("IRQ type:%04X, mask:%04X\n",
+		    unmasked, DRV_DATA(adev)->irq_mask);
 
 	/* Go ahead and ACK our interrupt */
 	write_reg16(adev, IO_ACX_IRQ_ACK, 0xffff);
 	if (irqtype & HOST_INT_CMD_COMPLETE) {
 		log(L_IRQ, "got Command_Complete IRQ\n");
+printk("got Command_Complete IRQ\n");
 		/* save the state for the running issue_cmd() */
 		SET_BIT(adev->irq_status, HOST_INT_CMD_COMPLETE);
 	}
@@ -980,10 +1106,17 @@ static irqreturn_t acxcs_i_interrupt(int irq, void *dev_id)
 		/* disable all IRQs. They are enabled again in the bottom half. */
 		/* save the reason code and call our bottom half. */
 		adev->irq_reason = irqtype;
-
-		if ((irqtype & HOST_INT_RX_COMPLETE) || (irqtype & HOST_INT_TX_COMPLETE))
+		if ((irqtype & HOST_INT_RX_DATA) || (irqtype & HOST_INT_TX_COMPLETE))
+		{
+printk("scheduling task... (irq_reason:%04X)\n", adev->irq_reason);
 			acx_schedule_task(adev, 0);
+		}
+		else
+		  printk("not scheduling task...\n");
 	}
+	else
+printk("acx: adev->initialied = false!!!\n");
+
 	acx_unlock(adev, flags);
 	return IRQ_HANDLED;
       none:
@@ -1619,7 +1752,40 @@ acxcs_read_cmd_type_status(acx_device_t *adev)
 
 static int acxcs_e_suspend( acx_device_t *adev, pm_message_t state)
 {
-    printk("acx: acxcs_e_suspend: NOT IMPLEMENTED\n");
+	struct ieee80211_hw *hw = adev->ieee;
+printk("acx: suspend not supported\n");
+return OK;
+	FN_ENTER;
+	printk("acx: suspend handler is experimental!\n");
+	printk("sus: dev %p\n", hw);
+
+/*	if (!netif_running(ndev))
+		goto end;
+*/
+	adev = ieee2adev(hw);
+	printk("sus: adev %p\n", adev);
+
+	acx_sem_lock(adev);
+
+	ieee80211_unregister_hw(hw);	/* this one cannot sleep */
+//	acxpci_s_down(hw);
+	/* down() does not set it to 0xffff, but here we really want that */
+/*	write_reg16(adev, IO_ACX_IRQ_MASK, 0xffff);
+	write_reg16(adev, IO_ACX_FEMR, 0x0);
+	acxpci_s_delete_dma_regions(adev);
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);*/
+
+	acxcs_s_down(hw);
+	/* down() does not set it to 0xffff, but here we really want that */
+	write_reg16(adev, IO_ACX_IRQ_MASK, 0xffff);
+	write_reg16(adev, IO_ACX_FEMR, 0x0);
+	acxcs_s_delete_dma_regions(adev);
+
+	acx_sem_unlock(adev);
+	FN_EXIT0;
+	return OK;
+    
     return 0;
 }
 
@@ -1917,6 +2083,8 @@ void acxcs_interrupt_tasklet(struct work_struct *work)
 	irqtype = adev->irq_reason;
 	adev->irq_reason = 0;
 
+	printk("acx: tasklet: reason: %04X\n", irqtype);
+
 #define IRQ_ITERATE 0
 #if IRQ_ITERATE
 	if (jiffies != adev->irq_last_jiffies) {
@@ -1932,9 +2100,10 @@ void acxcs_interrupt_tasklet(struct work_struct *work)
 
 
 		/* Handle most important IRQ types first */
-		if (irqtype & HOST_INT_RX_COMPLETE) {
+		if ((irqtype & HOST_INT_RX_COMPLETE) || (irqtype & HOST_INT_RX_DATA)) {
 			log(L_IRQ, "got Rx_Complete IRQ\n");
-//!!!!			acx_l_process_rxdesc(adev);
+printk("got Rx_Complete IRQ\n");
+			adev->ops->l_process_rxdesc(adev);
 		}
 		if (irqtype & HOST_INT_TX_COMPLETE) {
 			log(L_IRQ, "got Tx_Complete IRQ\n");
@@ -2438,7 +2607,6 @@ acxcs_create_rx_desc_queue(acx_device_t *adev, u32 rx_queue_start)
 	rxdesc_t *rxdesc;
 	u32 mem_offs;
 	int i;
-
 	FN_ENTER;
 
 	/* done by memset: adev->rx_tail = 0; */
@@ -2583,6 +2751,272 @@ int acxcs_s_upload_radio(acx_device_t * adev)
 	return res;
 }
 
+void*
+acxcs_l_get_txbuf(acx_device_t *adev, tx_t* tx_opaque)
+{
+	return get_txhostdesc(adev, (txdesc_t*)tx_opaque)->data;
+}
+
+void acxcs_l_tx_data(acx_device_t * adev, tx_t * tx_opaque, int len,
+		 struct ieee80211_tx_control *ieeectl,struct sk_buff* skb)
+{
+	txdesc_t *txdesc = (txdesc_t *) tx_opaque;
+	struct ieee80211_hdr *wireless_header;
+	txhostdesc_t *hostdesc1, *hostdesc2;
+	int rate_cur;
+	u8 Ctl_8, Ctl2_8;
+	int wlhdr_len;
+	
+printk("acx: l_tx_data\n");
+
+	FN_ENTER;
+
+	/* fw doesn't tx such packets anyhow */
+/*	if (unlikely(len < WLAN_HDR_A3_LEN))
+		goto end;
+*/
+	hostdesc1 = get_txhostdesc(adev, txdesc);
+printk("acx: l_tx_data: hostdesc1: %p\n", hostdesc1);
+	wireless_header = (struct ieee80211_hdr *)hostdesc1->data;
+printk("acx: l_tx_data: wireless_header: %p\n", hostdesc1);
+	/* modify flag status in separate variable to be able to write it back
+	 * in one big swoop later (also in order to have less device memory
+	 * accesses) */
+//	Ctl_8 = txdesc->Ctl_8;
+	Ctl_8 = read_slavemem8 (adev, (u32) &(txdesc->Ctl_8));
+
+	Ctl2_8 = 0;		/* really need to init it to 0, not txdesc->Ctl2_8, it seems */
+
+	hostdesc2 = hostdesc1 + 1;
+
+	/* DON'T simply set Ctl field to 0 here globally,
+	 * it needs to maintain a consistent flag status (those are state flags!!),
+	 * otherwise it may lead to severe disruption. Only set or reset particular
+	 * flags at the exact moment this is needed... */
+
+	/* let chip do RTS/CTS handshaking before sending
+	 * in case packet size exceeds threshold */
+	if (ieeectl->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+		SET_BIT(Ctl2_8, DESC_CTL2_RTS);
+	else
+		CLEAR_BIT(Ctl2_8, DESC_CTL2_RTS);
+
+	rate_cur = ieeectl->tx_rate;
+	if (unlikely(!rate_cur)) {
+		printk("acx: driver bug! bad ratemask\n");
+		goto end;
+	}
+
+	/* used in tx cleanup routine for auto rate and accounting: */
+/*	put_txcr(adev, txdesc, clt, rate_cur);  deprecated by mac80211 */
+
+//	txdesc->total_length = cpu_to_le16(len);
+	write_slavemem8 (adev, (u32) &(txdesc->total_length), cpu_to_le16(len));
+
+	wlhdr_len = ieee80211_get_hdrlen(le16_to_cpu(wireless_header->frame_control));
+	hostdesc2->length = cpu_to_le16(len - wlhdr_len);
+/*
+	if (!ieeectl->do_not_encrypt && ieeectl->key_idx>= 0)
+	{
+		u16 key_idx = (u16)(ieeectl->key_idx);
+		struct acx_key* key = &(adev->key[key_idx]);
+		int wlhdr_len;
+		if (key->enabled)
+		{
+			memcpy(ieeehdr->wep_iv, ((u8*)wireless_header) + wlhdr_len, 4);
+		}
+	}
+*/
+	if (IS_ACX111(adev)) {
+		/* note that if !txdesc->do_auto, txrate->cur
+		 ** has only one nonzero bit */
+		txdesc->u.r2.rate111 = cpu_to_le16(rate_cur
+						   /* WARNING: I was never able to make it work with prism54 AP.
+						    ** It was falling down to 1Mbit where shortpre is not applicable,
+						    ** and not working at all at "5,11 basic rates only" setting.
+						    ** I even didn't see tx packets in radio packet capture.
+						    ** Disabled for now --vda */
+						   /*| ((clt->shortpre && clt->cur!=RATE111_1) ? RATE111_SHORTPRE : 0) */
+		    );
+#ifdef TODO_FIGURE_OUT_WHEN_TO_SET_THIS
+		/* should add this to rate111 above as necessary */
+		|(clt->pbcc511 ? RATE111_PBCC511 : 0)
+#endif
+		    hostdesc1->length = cpu_to_le16(len);
+	} else {		/* ACX100 */
+		u8 rate_100 = ieeectl->tx_rate;
+//		txdesc->u.r1.rate = rate_100;
+		write_slavemem8 (adev, (u32) &(txdesc->u.r1.rate), rate_100);
+
+#ifdef TODO_FIGURE_OUT_WHEN_TO_SET_THIS
+		if (clt->pbcc511) {
+			if (n == RATE100_5 || n == RATE100_11)
+				n |= RATE100_PBCC511;
+		}
+
+		if (clt->shortpre && (clt->cur != RATE111_1))
+			SET_BIT(Ctl_8, DESC_CTL_SHORT_PREAMBLE);	/* set Short Preamble */
+#endif
+		/* set autodma and reclaim and 1st mpdu */
+		SET_BIT(Ctl_8,
+			DESC_CTL_AUTODMA | DESC_CTL_RECLAIM |
+			DESC_CTL_FIRSTFRAG);
+#if ACX_FRAGMENTATION
+		/* SET_BIT(Ctl2_8, DESC_CTL2_MORE_FRAG); cannot set it unconditionally, needs to be set for all non-last fragments */
+#endif
+		hostdesc1->length = cpu_to_le16(wlhdr_len);
+	}
+	/* don't need to clean ack/rts statistics here, already
+	 * done on descr cleanup */
+
+	/* clears HOSTOWN and ACXDONE bits, thus telling that the descriptors
+	 * are now owned by the acx100; do this as LAST operation */
+	CLEAR_BIT(Ctl_8, DESC_CTL_ACXDONE_HOSTOWN);
+	/* flush writes before we release hostdesc to the adapter here */
+	wmb();
+	CLEAR_BIT(hostdesc1->Ctl_16, cpu_to_le16(DESC_CTL_HOSTOWN));
+	CLEAR_BIT(hostdesc2->Ctl_16, cpu_to_le16(DESC_CTL_HOSTOWN));
+
+	/* write back modified flags */
+	CLEAR_BIT(Ctl2_8, DESC_CTL2_WEP);
+//	txdesc->Ctl2_8 = Ctl2_8;
+	write_slavemem8 (adev, (u32) &(txdesc->Ctl2_8), Ctl2_8);
+//	txdesc->Ctl_8 = Ctl_8;
+	write_slavemem8 (adev, (u32) &(txdesc->Ctl_8), Ctl_8);
+
+	/* unused: txdesc->tx_time = cpu_to_le32(jiffies); */
+
+	/* flush writes before we tell the adapter that it's its turn now */
+	mmiowb();
+	write_reg16(adev, IO_ACX_INT_TRIG, INT_TRIG_TXPRC);
+	write_flush(adev);
+	/* log the packet content AFTER sending it,
+	 * in order to not delay sending any further than absolutely needed
+	 * Do separate logs for acx100/111 to have human-readable rates */
+	memcpy(&(hostdesc1->txstatus.control),ieeectl,sizeof(struct ieee80211_tx_control));
+	hostdesc1->skb = skb;
+      end:
+	FN_EXIT0;
+}
+
+static void
+acxcs_l_process_rxdesc(acx_device_t *adev)
+{
+	register rxhostdesc_t *hostdesc;
+	register rxdesc_t *rxdesc;
+	unsigned count, tail;
+	u32 addr;
+	u8 Ctl_8;
+
+	FN_ENTER;
+
+printk("acx: rx_desc\n");
+
+//!!!!	if (unlikely(acx_debug & L_BUFR))
+//		log_rxbuffer(adev);
+
+	/* First, have a loop to determine the first descriptor that's
+	 * full, just in case there's a mismatch between our current
+	 * rx_tail and the full descriptor we're supposed to handle. */
+	tail = DRV_DATA(adev)->rx_tail;
+	count = RX_CNT;
+	while (1) {
+		hostdesc = &DRV_DATA(adev)->rxhostdesc_start[tail];
+		rxdesc = &DRV_DATA(adev)->rxdesc_start[tail];
+		/* advance tail regardless of outcome of the below test */
+		tail = (tail + 1) % RX_CNT;
+
+		/*
+		 * Unlike the PCI interface, where the ACX can write directly to
+		 * the host descriptors, on the slave memory interface we have to
+		 * pull these.  All we really need to do is check the Ctl_8 field
+		 * in the rx descriptor on the ACX, which should be 0x11000000 if
+		 * we should process it.
+		 */
+		Ctl_8 = hostdesc->Ctl_16 = read_slavemem8 (adev, (u32) &(rxdesc->Ctl_8));
+                if ((Ctl_8 & DESC_CTL_HOSTOWN) &&
+		    (Ctl_8 & DESC_CTL_ACXDONE))
+		  break;		/* found it! */
+
+		if (unlikely(!--count))	/* hmm, no luck: all descs empty, bail out */
+			goto end;
+	}
+
+	/* now process descriptors, starting with the first we figured out */
+	while (1) {
+		log(L_BUFR, "rx: tail=%u Ctl_8=%02X\n",	tail, Ctl_8);
+printk("rx: tail=%u Ctl_8=%02X\n",	tail, Ctl_8);
+		/*
+		 * If the ACX has CTL_RECLAIM set on this descriptor there
+		 * is no buffer associated; it just wants us to tell it to
+		 * reclaim the memory.
+		 */
+		if (!(Ctl_8 & DESC_CTL_RECLAIM)) {
+
+		  /*
+		 * slave interface - pull data now
+		 */
+		hostdesc->length = read_slavemem16 (adev, (u32) &(rxdesc->total_length));
+
+		/*
+		 * hostdesc->data is an rxbuffer_t, which includes header information,
+		 * but the length in the data packet doesn't.  The header information
+		 * takes up an additional 12 bytes, so add that to the length we copy.
+		 */
+		addr = read_slavemem32 (adev, (u32) &(rxdesc->ACXMemPtr));
+		  if (addr) {
+		    /*
+		     * How can &(rxdesc->ACXMemPtr) above ever be zero?  Looks like we
+		     * get that now and then - try to trap it for debug.
+		     */
+		    if (addr & 0xffff0000) {
+		      printk("rxdesc 0x%08x\n", (u32) rxdesc);
+//		      dump_acxmem (adev, 0, 0x10000);
+		      panic ("Bad access!");
+		    }
+		  chaincopy_from_slavemem (adev, (u8 *) hostdesc->data, addr,
+					   hostdesc->length +
+					   (u32) &((rxbuffer_t *)0)->hdr_a3);
+		acx_l_process_rxbuf(adev, hostdesc->data);
+		  }
+		}
+		else {
+		  printk ("rx reclaim only!\n");
+		}
+
+		hostdesc->Status = 0;
+
+		/*
+		 * Let the ACX know we're done.
+		 */
+		CLEAR_BIT (Ctl_8, DESC_CTL_HOSTOWN);
+                SET_BIT (Ctl_8, DESC_CTL_HOSTDONE);
+		SET_BIT (Ctl_8, DESC_CTL_RECLAIM);
+		write_slavemem8 (adev, (u32) &rxdesc->Ctl_8, Ctl_8);
+
+		/*
+		 * Now tell the ACX we've finished with the receive buffer so 
+		 * it can finish the reclaim.
+		 */
+		write_reg16 (adev, IO_ACX_INT_TRIG, INT_TRIG_RXPRC);
+
+		/* ok, descriptor is handled, now check the next descriptor */
+		hostdesc = &DRV_DATA(adev)->rxhostdesc_start[tail];
+		rxdesc = &DRV_DATA(adev)->rxdesc_start[tail];
+
+		Ctl_8 = hostdesc->Ctl_16 = read_slavemem8 (adev, (u32) &(rxdesc->Ctl_8));
+
+		/* if next descriptor is empty, then bail out */
+		if (!(Ctl_8 & DESC_CTL_HOSTOWN) || !(Ctl_8 & DESC_CTL_ACXDONE))
+			break;
+
+		tail = (tail + 1) % RX_CNT;
+	}
+end:
+	DRV_DATA(adev)->rx_tail = tail;
+	FN_EXIT0;
+}
+
 
 static const struct ieee80211_ops acxpcimcia_hw_ops = {
 	.tx = acx_i_start_xmit,
@@ -2609,6 +3043,8 @@ static acx_ops_t acx_pcimcia_ops = {
 	.set_regbits = set_regbits,
 	.write_flush = write_flush,
 	.clear_regbits = clear_regbits,
+	.read_slavemem8 = read_slavemem8,
+	.write_slavemem8 = write_slavemem8,
 	//
 	.get_dev = get_dev,
 	.interrupt_tasklet = acxcs_interrupt_tasklet,
@@ -2616,6 +3052,9 @@ static acx_ops_t acx_pcimcia_ops = {
 	.s_create_hostdesc_queues = acxcs_s_create_hostdesc_queues,
 	.create_desc_queues = acxcs_create_desc_queues,
 	.get_txdesc = get_txdesc,
+	.l_get_txbuf = acxcs_l_get_txbuf,
+	.l_tx_data = acxcs_l_tx_data,
+	.l_process_rxdesc = acxcs_l_process_rxdesc,
 	.s_upload_radio = acxcs_s_upload_radio,
 	.s_issue_cmd_timeo = acxcs_s_issue_cmd_timeo_debug,
 	.s_issue_cmd_timeo_debug = acxcs_s_issue_cmd_timeo_debug,
@@ -3039,22 +3478,52 @@ static int acx_cs_suspend(struct pcmcia_device *link)
 
 static int acx_cs_resume(struct pcmcia_device *link)
 {
-//!!!!	local_info_t *local = link->priv;
-	
-	FN_ENTER;
-//	resume_ndev = local->ndev;
+	acx_device_t *adev = link->priv;
+	struct ieee80211_hw *hw = adev->ieee;
+printk("acx: resume not supported\n");
+return OK;
 
-//	schedule_work( &fw_resume_work );
-	
-	/* Already done in suspend
-	if (link->open) {
-	  // do we need reset for ACX, if so what function nane is ?
-		//reset_acx_card(local->eth_dev);
-		netif_device_attach(local->ndev);
-	} */
-	
+	FN_ENTER;
+
+	printk("acx: resume handler is experimental!\n");
+	printk("rsm: got dev %p\n", hw);
+
+
+	adev = ieee2adev(hw);
+	printk("rsm: got adev %p\n", adev);
+
+	acx_sem_lock(adev);
+
+//	pci_set_power_state(pdev, PCI_D0);
+//	printk("rsm: power state PCI_D0 set\n");
+//	pci_restore_state(pdev);
+//	printk("rsm: PCI state restored\n");
+
+	if (OK != acxpci_s_reset_dev(adev))
+		goto end_unlock;
+	printk("rsm: device reset done\n");
+	if (OK != acx_s_init_mac(adev))
+		goto end_unlock;
+	printk("rsm: init MAC done\n");
+
+	acxcs_s_up(hw);
+
+
+	/* now even reload all card parameters as they were before suspend,
+	 * and possibly be back in the network again already :-) */
+	if (ACX_STATE_IFACE_UP & adev->dev_state_mask) {
+		adev->set_mask = GETSET_ALL;
+		acx_s_update_card_settings(adev);
+		printk("rsm: settings updated\n");
+	}
+	ieee80211_register_hw(hw);
+	printk("rsm: device attached\n");
+
+      end_unlock:
+	acx_sem_unlock(adev);
+	/* we need to return OK here anyway, right? */
 	FN_EXIT0;
-	return 0;
+	return OK;
 }
 
 static struct pcmcia_device_id acx_ids[] = {
