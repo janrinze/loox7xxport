@@ -32,6 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
+//#include <asm/arch/ssp.h>
 #include <asm/arch/regs-ssp.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx_spi.h>
@@ -100,11 +101,19 @@
 /* PWM 0/1/2/3 */
 	GPIO16_PWM0_OUT,
 	GPIO17_PWM1_OUT,
+#ifndef CONFIG_LOOX720_ADS7846
 /* SSP 1 */
 	GPIO23_SSP1_SCLK,
 	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
+#else
+/* loox720 ads7846 bitbanging SPI interface */
+	MFP_CFG_OUT(GPIO23, AF0, DRIVE_LOW),
+	MFP_CFG_OUT(GPIO24, AF0, DRIVE_LOW),
+	MFP_CFG_OUT(GPIO25, AF0, DRIVE_LOW),
+	GPIO26_GPIO,
+#endif
 /* QCI - default to Master Mode: CIF_FV/CIF_LV Direction In */
 	GPIO27_CIF_DD_0,
 	GPIO114_CIF_DD_1,
@@ -167,8 +176,8 @@
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
 /* Platform-specific */
-	MFP_CFG_OUT(GPIO3, AF0, DRIVE_HIGH),
-	MFP_CFG_OUT(GPIO4, AF0, DRIVE_LOW),
+	MFP_CFG_OUT(GPIO3, AF0, DRIVE_HIGH),	// setup but function unknown
+	MFP_CFG_OUT(GPIO4, AF0, DRIVE_LOW),	// setup but function unknown
 	GPIO9_GPIO,
 	GPIO11_GPIO,
 	GPIO12_GPIO,
@@ -177,21 +186,21 @@
 	MFP_CFG_OUT(GPIO19, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO22, AF0, DRIVE_HIGH),
 	MFP_CFG_OUT(GPIO36, AF0, DRIVE_HIGH),
-	GPIO38_GPIO,
+	GPIO38_GPIO,				// setup but function unknown
 	GPIO52_GPIO,
 	GPIO74_GPIO,
 	MFP_CFG_OUT(GPIO75, AF0, DRIVE_HIGH),
-	MFP_CFG_OUT(GPIO81, AF0, DRIVE_LOW),
-	MFP_CFG_OUT(GPIO86, AF0, DRIVE_HIGH),
+	MFP_CFG_OUT(GPIO81, AF0, DRIVE_LOW),	// setup but function unknown
+	MFP_CFG_OUT(GPIO86, AF0, DRIVE_HIGH),	// setup but function unknown
 	GPIO87_GPIO,
-	MFP_CFG_OUT(GPIO90, AF0, DRIVE_HIGH),
-	MFP_CFG_OUT(GPIO91, AF0, DRIVE_HIGH),
+	MFP_CFG_OUT(GPIO90, AF0, DRIVE_HIGH),	// setup but function unknown
+	MFP_CFG_OUT(GPIO91, AF0, DRIVE_HIGH),	// setup but function unknown
 	GPIO94_GPIO,
-	MFP_CFG_OUT(GPIO95, AF0, DRIVE_LOW),
-	GPIO96_GPIO,
-	MFP_CFG_OUT(GPIO106, AF0, DRIVE_HIGH),
+	MFP_CFG_OUT(GPIO95, AF0, DRIVE_LOW),	// setup but function unknown
+	GPIO96_GPIO,				// setup but function unknown
+	MFP_CFG_OUT(GPIO106, AF0, DRIVE_HIGH),	// setup but function unknown
 	MFP_CFG_OUT(GPIO107, AF0, DRIVE_LOW),
-	GPIO119_GPIO,
+	GPIO119_GPIO,				// setup but function unknown
 	GPIO120_GPIO,
  };
 
@@ -562,6 +571,16 @@ static struct platform_device loox720_core = {
 		.platform_data = &core_funcs,
 	},
 };
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * ads7846 test device, provides crude touchscreen support through bitbanging.
+ */
+
+static struct platform_device loox720_ads7846 = {
+	.name = "loox720-ads7846",
+	.id		= -1,
+};
 
 /*--------------------------------------------------------------------------------*/
 
@@ -703,7 +722,11 @@ static struct pxamci_platform_data loox7xx_mci_info = {
  
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
+#ifndef CONFIG_LOOX720_ADS7846
 	&pxa_ssp,
+#else
+        &loox720_ads7846,
+#endif
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
 #endif

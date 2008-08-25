@@ -55,6 +55,15 @@ config LOOX720_FLASH
     help
         FSC Loox 720 internal flash ROM support.
 
+config LOOX720_ADS7846
+    tristate "FSC Loox 720 ADS7846 bitbanging touchscreen"
+    depends on MACH_LOOX720
+    depends on !LOOX720_TS
+    depends on !SPI
+    help
+        FSC Loox 720 ADS7846 bitbanging touchscreen support.
+
+
 config DRAM_BASE
     hex '(S)DRAM Base Address'
     depends on MACH_LOOX720
