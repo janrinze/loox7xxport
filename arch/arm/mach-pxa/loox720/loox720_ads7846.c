@@ -32,7 +32,7 @@ static loox720_ads7846_device_info loox720_ads7846_dev = {
 	.pen	= GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N,
 	.irq	= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
 
-	.half_clock_time=2, // 8 usec setup for 125kHz max operation
+	.half_clock_time=4, // 8 usec setup for 125kHz max operation
 	.sample_rate=10, // 20 msec for 50Hz sampling
 };
 	// =======================================================
@@ -202,7 +202,7 @@ static void read_loox720_ads7846(void * ads_dev)
 	z1 = convert_data_12( 1 );
 	z2 = convert_data_12( 2 );
 	
-	if (x&z1) // valid measurement
+	if (x&&z1) // valid measurement
 	{
 		unsigned int Rt; // calculated pressure for 400 ohms
 		Rt = (((z2-z1)*x*400)/z1 +2047)>>12;
@@ -326,11 +326,7 @@ static int __init loox720_ads7846_probe(struct platform_device *pdev)
 	gpio_direction_output(loox720_ads7846_dev.clock,0);
 	gpio_direction_output(loox720_ads7846_dev.cs,1);
 
-	// =======================================================
-	//	do a quick read
-	// =======================================================
 
-	read_loox720_ads7846(&loox720_ads7846_dev);
 	// =======================================================
 	//	register our input device
 	// =======================================================
@@ -340,7 +336,11 @@ static int __init loox720_ads7846_probe(struct platform_device *pdev)
 		goto err_remove_clock;
 
 	loox720_ads7846_dev.input = input_dev;
+	// =======================================================
+	//	do a quick read
+	// =======================================================
 
+	read_loox720_ads7846(&loox720_ads7846_dev);
 	return 0;
 
 err_remove_clock:

@@ -55,8 +55,13 @@ config LOOX720_FLASH
     help
         FSC Loox 720 internal flash ROM support.
 
+config LOOX720_DISABLE_SSP
+    bool
+    depends on LOOX720_ADS7846
+
 config LOOX720_ADS7846
     tristate "FSC Loox 720 ADS7846 bitbanging touchscreen"
+    select LOOX720_DISABLE_SSP
     depends on MACH_LOOX720
     depends on !LOOX720_TS
     depends on !SPI

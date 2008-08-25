@@ -101,18 +101,18 @@
 /* PWM 0/1/2/3 */
 	GPIO16_PWM0_OUT,
 	GPIO17_PWM1_OUT,
-#ifndef CONFIG_LOOX720_ADS7846
-/* SSP 1 */
-	GPIO23_SSP1_SCLK,
-	GPIO24_SSP1_SFRM,
-	GPIO25_SSP1_TXD,
-	GPIO26_SSP1_RXD,
-#else
+#ifdef CONFIG_LOOX720_DISABLE_SSP
 /* loox720 ads7846 bitbanging SPI interface */
 	MFP_CFG_OUT(GPIO23, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO24, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO25, AF0, DRIVE_LOW),
 	GPIO26_GPIO,
+#else
+/* SSP 1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
 #endif
 /* QCI - default to Master Mode: CIF_FV/CIF_LV Direction In */
 	GPIO27_CIF_DD_0,
@@ -719,13 +719,14 @@ static struct pxamci_platform_data loox7xx_mci_info = {
 /*
  * Loox 720
  */
+
  
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
-#ifndef CONFIG_LOOX720_ADS7846
-	&pxa_ssp,
+#ifdef CONFIG_LOOX720_DISABLE_SSP
+	&loox720_ads7846,
 #else
-        &loox720_ads7846,
+        &pxa_ssp,
 #endif
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
