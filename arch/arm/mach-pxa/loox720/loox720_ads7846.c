@@ -68,6 +68,36 @@ static loox720_ads7846_spi_message ads_cmds[5] = {
 	bitbanging routines
 
    ========================================================== */
+
+#define bittogglefunc( gpio ) 							\
+static inline void set ## gpio(loox720_ads7846_device_info *dev)		\
+{										\
+	if(dev)									\
+		gpio_set_value(dev-> gpio ,1);					\
+}										\
+static inline void clr ## gpio(loox720_ads7846_device_info *dev)		\
+{										\
+	if(dev)									\
+		gpio_set_value(dev-> gpio ,0);					\
+}
+
+#define bitreadfunc( gpio )							\
+static inline unsigned int read ## gpio(loox720_ads7846_device_info *dev)	\
+{										\
+	if(dev)									\
+		return (gpio_get_value(dev-> gpio )?1:0);			\
+	printk( KERN_INFO "ADS7846 trying to read data with empty dev\n");	\
+	return 0;								\
+}
+
+bittogglefunc( mosi )
+bittogglefunc( clock )
+bittogglefunc( cs )
+
+
+bitreadfunc( miso )
+bitreadfunc( pen )
+/*
 static inline unsigned int readmiso(loox720_ads7846_device_info *dev)
 {
 	if(dev)
@@ -75,6 +105,13 @@ static inline unsigned int readmiso(loox720_ads7846_device_info *dev)
 	printk( KERN_INFO "ADS7846 trying to read data with empty dev\n");
 	return 0;
 }
+static inline unsigned int readpen(loox720_ads7846_device_info *dev)
+{
+	if(dev)
+		return (gpio_get_value(dev->pen)?1:0);
+	return 0;
+}
+
 static inline void setmosi(loox720_ads7846_device_info *dev)
 {
 	if(dev)
@@ -105,19 +142,14 @@ static inline void clrcs(loox720_ads7846_device_info *dev)
 	if(dev)
 		gpio_set_value(dev->cs,0);
 }
-
+*/
 
 static inline void spidelay(loox720_ads7846_device_info *dev)
 {
 	if(dev)
 		udelay(dev->half_clock_time);
 }
-static inline unsigned int readpen(loox720_ads7846_device_info *dev)
-{
-	if(dev)
-		return (gpio_get_value(dev->pen)?1:0);
-	return 0;
-}
+
 /* ==========================================================
 
 	SPI byte transfer

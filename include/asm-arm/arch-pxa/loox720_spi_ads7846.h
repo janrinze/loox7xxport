@@ -62,7 +62,7 @@ typedef struct loox720_ads7846_spi_mblock
 
 typedef struct loox720_ads7846_device_info {
 	unsigned int mosi,miso,clock,cs,irq,pen;
-	unsigned int half_clock_time;
+	unsigned int half_clock_time,x,y;
 	unsigned int sample_rate,pendown;
 	void * input;
 	struct spi_device *spi;
@@ -70,6 +70,6 @@ typedef struct loox720_ads7846_device_info {
 	struct spi_message	msg[5];
 	unsigned short sendblock[10];
 	unsigned short receiveblock[10];
-	unsigned int spi_message_setup;
+	unsigned int report_button;
 } loox720_ads7846_device_info;
 
