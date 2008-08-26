@@ -42,6 +42,10 @@ static int loox720_ads7846_pendown_state(void)
 static struct ads7846_platform_data ads_info = {
 	.model			= 7845,
 	.get_pendown_state	= loox720_ads7846_pendown_state,
+	.debounce_max		= 12,
+	.debounce_tol		= 4,
+	.debounce_rep		= 1,
+	.penirq_recheck_delay_usecs = 20,
 };
 
 static struct pxa2xx_spi_chip ads_hw = {

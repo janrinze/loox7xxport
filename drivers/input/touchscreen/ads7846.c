@@ -522,7 +522,7 @@ static void ads7846_rx(void *ads)
 	} else
 		Rt = 0;
 
-	if (ts->model == 7843)
+	if (ts->model == 7843 || ts->model == 7845)
 		Rt = ts->pressure_max / 2;
 
 	/* Sample found inconsistent by debouncing or pressure is beyond
