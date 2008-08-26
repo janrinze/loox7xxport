@@ -33,7 +33,7 @@ static loox720_ads7846_device_info loox720_ads7846_dev = {
 	.pen	= GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N,
 	.irq	= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
 
-	.sample_rate=10, // 10 msec for 100Hz sampling
+	.sample_rate=5, // 5 msec for 200Hz sampling
 };
 
 /* ==========================================================
@@ -61,8 +61,8 @@ static loox720_ads7846_spi_message ads_cmds[5] = {
 };*/
 static loox720_ads7846_spi_message ads_cmds[5] = {
 	{ .cmd = 0xD3<<7, }, // get x 
-	{ .cmd = 0x93<<7, }, // get y 
 	{ .cmd = 0xD0<<7, }, // get z1 
+	{ .cmd = 0x93<<7, }, // get y 
 	{ .cmd = 0x90<<7, }, // get z2
 	{ .cmd = 0x0000, }  // powerdown
 };
@@ -103,6 +103,13 @@ int SPI_read_write_block(loox720_ads7846_device_info * dev,loox720_ads7846_spi_m
 
 void loox720_ads7846_report(loox720_ads7846_device_info * dev, unsigned int Rt, unsigned int x, unsigned int y)
 {
+		if (dev->report_button)
+		{
+			// report button will be 2 or 1 
+			// 2 is pressed, 1 is released			
+			input_report_key(dev->input, BTN_TOUCH, 1);
+			dev->report_button=0;
+		}
 		input_report_abs(dev->input, ABS_X, x);
 		input_report_abs(dev->input, ABS_Y, y);
 		input_report_abs(dev->input, ABS_PRESSURE, Rt);
@@ -117,7 +124,11 @@ static volatile int loox720_ads7846_busy;
 
 static void read_loox720_ads7846(void * ads_dev)
 {
-	unsigned int i,x,y,z1,z2;
+	// use safe values
+	static int xmin = 400,xmax = 3610;
+	static int ymin = 333,ymax = 3780;
+
+	int i,x,y,z1,z2;
 	loox720_ads7846_spi_message * cmds = ads_cmds;
 	loox720_ads7846_device_info * dev = ads_dev;
 
@@ -125,16 +136,30 @@ static void read_loox720_ads7846(void * ads_dev)
 	
 	SPI_read_write_block( dev , cmds , ARRAY_SIZE(ads_cmds));
 
-	x  = convert_data_12( 0 );
+	x  = convert_data_12( 1);
 	y  = convert_data_12( 3 );
-	z1 = convert_data_12( 1 );
+	z1 = convert_data_12( 0 );
 	z2 = convert_data_12( 2 );
 	
-	if (x) // valid measurement
+	if ((x>10)&&(y>10)) // valid measurement
 	{
-		unsigned int Rt; // calculated pressure for 500 ohms
-		Rt = z1; if (Rt==0) Rt=13;//(((z2-z1)*x*500)/z1 +2047)>>12;
-		loox720_ads7846_report(dev, Rt, x,y);
+		// x min : 400	xmax: 3610
+		// y min : 333	ymax: 3780
+
+		// auto-adjust config:
+		if ((x<xmin)&&(y<ymin)) { xmin = x;ymin = y;}
+		if ((x>ymax)&&(y>ymax)) { xmax = x;ymax = y;}
+
+		// normalize to 480 x 640
+		x = (480* (x-xmin))/(xmax-xmin);
+		y = (640* (y-ymin))/(ymax-ymin);
+		x = 479-x; 
+		// keep x,y in the screen
+		if (x<0) x=0;if (x>479) x=479;
+		if (y<0) y=0;if (y>639) y=639;
+		dev->x=x;
+		dev->y=y;		
+		loox720_ads7846_report(dev, MAX_12BIT -1, dev->x ,dev->y);
 	}
 }
 /* ==========================================================
@@ -149,14 +174,19 @@ static void looping_read_loox720_ads7846(/*void * ads_dev*/)
 	if (loox720_ads7846_busy==0)
 	{
 		loox720_ads7846_busy=1;
-		input_report_key(dev->input, BTN_TOUCH, 1);
-
-		while (dev->pendown)
+		// report pen down
+		dev->report_button=1;
+		do
 		{
 			read_loox720_ads7846(dev);
-			if (dev->pendown) msleep(dev->sample_rate);	
-		}
+			if ((volatile int)dev->pendown==0) break; 
+			msleep(dev->sample_rate);	
+		} while ((volatile int)dev->pendown);
+		// report pen up
+		loox720_ads7846_report(dev, 0, dev->x ,dev->y);
 		input_report_key(dev->input, BTN_TOUCH, 0);
+		input_report_abs(dev->input, ABS_PRESSURE, 0);
+		input_sync(dev->input);
 	}
 	loox720_ads7846_busy=0;
 }
@@ -238,8 +268,8 @@ static int __init loox720_ads7846_probe(struct spi_device *spi)
 	input_dev->name = "Loox720 ADS7846 Touchscreen";
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	input_set_abs_params(input_dev, ABS_X,0,MAX_12BIT,0, 0);
-	input_set_abs_params(input_dev, ABS_Y,0,MAX_12BIT,0, 0);
+	input_set_abs_params(input_dev, ABS_X,0,480,0, 0);
+	input_set_abs_params(input_dev, ABS_Y,0,640,0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0,MAX_12BIT, 0, 0);
 
 	// =======================================================
