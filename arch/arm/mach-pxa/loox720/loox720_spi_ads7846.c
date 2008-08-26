@@ -20,10 +20,10 @@
 #include <asm/arch/loox720-cpld.h>
 #include <asm/arch/loox720_spi_ads7846.h>
 
-	// =======================================================
-	// hardcoded values for testing
-	// we should be using the pdev struct to retrieve this info..
-	// =======================================================
+// =======================================================
+// hardcoded values for testing
+// we should be using the pdev struct to retrieve this info..
+// =======================================================
 	
 static loox720_ads7846_device_info loox720_ads7846_dev = {
 	.clock	= GPIO_NR_LOOX720_TOUCHPANEL_SPI_CLK,
@@ -42,33 +42,13 @@ static loox720_ads7846_device_info loox720_ads7846_dev = {
 
    ========================================================== */
 
-#if 0
 static loox720_ads7846_spi_message ads_cmds[5] = {
-	{ .cmd = 0x6980, }, // get x D3
-	{ .cmd = 0x6800, }, // get y D0
-	{ .cmd = 0x4980, }, // get z1 93
-	{ .cmd = 0x4800, }, // get z2 90
+	{ .cmd = 0xD3<<7, }, // setup x 
+	{ .cmd = 0xD0<<7, }, // read x 
+	{ .cmd = 0x93<<7, }, // setup y
+	{ .cmd = 0x90<<7, }, // read y
 	{ .cmd = 0x0000, }  // powerdown
 };
-#else
-/*
-static loox720_ads7846_spi_message ads_cmds[5] = {
-	{ .cmd = 0xD3<<7, }, // get x 
-	{ .cmd = 0x93<<7, }, // get y 
-	{ .cmd = 0xB3<<7, }, // get z1 
-	{ .cmd = 0xC3<<7, }, // get z2
-	{ .cmd = 0x0000, }  // powerdown
-};*/
-static loox720_ads7846_spi_message ads_cmds[5] = {
-	{ .cmd = 0xD3<<7, }, // get x 
-	{ .cmd = 0xD0<<7, }, // get z1 
-	{ .cmd = 0x93<<7, }, // get y 
-	{ .cmd = 0x90<<7, }, // get z2
-	{ .cmd = 0x0000, }  // powerdown
-};
-
-#endif
-
 
 /* ==========================================================
 
@@ -105,8 +85,6 @@ void loox720_ads7846_report(loox720_ads7846_device_info * dev, unsigned int Rt, 
 {
 		if (dev->report_button)
 		{
-			// report button will be 2 or 1 
-			// 2 is pressed, 1 is released			
 			input_report_key(dev->input, BTN_TOUCH, 1);
 			dev->report_button=0;
 		}
@@ -216,8 +194,6 @@ irqreturn_t pendown_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		loox720_ads7846_dev.pendown=1;
 		if (loox720_ads7846_busy==0)
 		{
-			//loox720_ads7846_busy=1;
-			//tasklet_schedule(&printcoords_tasklet);
 			schedule_work(&printcoords_work);
 		}
 	} else {
