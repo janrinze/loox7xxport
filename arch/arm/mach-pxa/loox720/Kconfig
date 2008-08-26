@@ -8,6 +8,12 @@ config LOOX720_LCD
         This driver provides support for changing power and brightness
         on Loox 720 LCD display.
 
+choice
+    prompt "touchscreen selection"
+
+config LOOX720_NO_TS
+    bool "disabled"
+
 config LOOX720_TS
     bool "FSC Loox 720 Touchscreen"
     depends on MACH_LOOX720
@@ -15,7 +21,19 @@ config LOOX720_TS
     select SPI_PXA2XX
     select TOUCHSCREEN_ADS7846
     help
-        This driver provides support for touchscreen.
+        This driver provides support for touchscreen using the ads8746 SPI driver.
+
+config LOOX720_ADS7846
+    bool "FSC Loox 720 simple direct SPI"
+    select SPI
+    select SPI_PXA2XX
+    depends on MACH_LOOX720
+    help
+        FSC Loox 720 ADS7846 touchscreen over SPI support.
+        This driver does not use the ads7846 driver but implements
+        a direct call to the ads chip over SPI.
+
+endchoice
 
 config LOOX720_BUTTONS
     bool "FSC Loox 720 Buttons"
@@ -54,19 +72,6 @@ config LOOX720_FLASH
     depends on MACH_LOOX720
     help
         FSC Loox 720 internal flash ROM support.
-
-config LOOX720_DISABLE_SSP
-    bool
-    depends on LOOX720_ADS7846
-
-config LOOX720_ADS7846
-    tristate "FSC Loox 720 ADS7846 bitbanging touchscreen"
-    select LOOX720_DISABLE_SSP
-    depends on MACH_LOOX720
-    depends on !LOOX720_TS
-    depends on !SPI
-    help
-        FSC Loox 720 ADS7846 bitbanging touchscreen support.
 
 
 config DRAM_BASE

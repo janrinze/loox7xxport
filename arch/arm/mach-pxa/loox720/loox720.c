@@ -48,6 +48,7 @@
 #include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/sharpsl.h>
+#include <linux/spi/spi.h>
 
 #include "../generic.h"
 #include "loox720_core.h"
@@ -101,19 +102,11 @@
 /* PWM 0/1/2/3 */
 	GPIO16_PWM0_OUT,
 	GPIO17_PWM1_OUT,
-#ifdef CONFIG_LOOX720_DISABLE_SSP
-/* loox720 ads7846 bitbanging SPI interface */
-	MFP_CFG_OUT(GPIO23, AF0, DRIVE_LOW),
-	MFP_CFG_OUT(GPIO24, AF0, DRIVE_LOW),
-	MFP_CFG_OUT(GPIO25, AF0, DRIVE_LOW),
-	GPIO26_GPIO,
-#else
 /* SSP 1 */
 	GPIO23_SSP1_SCLK,
 	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
-#endif
 /* QCI - default to Master Mode: CIF_FV/CIF_LV Direction In */
 	GPIO27_CIF_DD_0,
 	GPIO114_CIF_DD_1,
@@ -411,7 +404,7 @@ static struct platform_device loox720_pxa_keys = {
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.clock_enable = CKEN_SSP1,
 	.num_chipselect	= 1,
-	.enable_dma = 0,
+	.enable_dma = 1,
 };
 
 static struct platform_device pxa_ssp = {
@@ -723,11 +716,7 @@ static struct pxamci_platform_data loox7xx_mci_info = {
  
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
-#ifdef CONFIG_LOOX720_DISABLE_SSP
-	&loox720_ads7846,
-#else
         &pxa_ssp,
-#endif
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
 #endif
@@ -749,6 +738,36 @@ static struct platform_device *devices[] __initdata = {
 	&loox720_battery,
 #endif
 };
+
+#ifdef CONFIG_LOOX720_ADS7846
+static struct pxa2xx_spi_chip loox720_spi_ads7846_hw = {
+	.tx_threshold		= 10,
+	.rx_threshold		= 10,
+	//.cs_control		= ads7846_cs,
+	.timeout		= 130000,
+	.enable_loopback	= 0,
+};
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias		= "loox720_spi_ads7846",
+		.controller_data 	= &loox720_spi_ads7846_hw,
+		.irq			= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
+		.max_speed_hz		= 125000 ,
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.mode			= SPI_MODE_0,
+	},
+/*
+	{
+		.modalias		= "spidev",
+		.max_speed_hz		= 125000 ,
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.mode			= SPI_MODE_0,
+	},
+*/	
+};
+#endif
 
 static void __init loox720_init( void )
 {
@@ -795,6 +814,9 @@ static void __init loox720_init( void )
 //	corgi_ssp_set_machinfo(&loox720_ssp_machinfo);
 
 	platform_add_devices( devices, ARRAY_SIZE(devices) );
+#ifdef CONFIG_LOOX720_ADS7846
+	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
+#endif
 }
 
 MACHINE_START(LOOX720, "FSC Loox 720")

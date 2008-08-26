@@ -15,6 +15,6 @@ obj-$(CONFIG_LOOX720_GPIOED)	+= gpioed-ng.o
 obj-$(CONFIG_LOOX720_CPLD_EDIT)	+= cpld_edit.o
 #obj-$(CONFIG_LOOX720_PCMCIA)	+= loox720_pcmcia.o
 obj-$(CONFIG_LOOX720_FLASH)	+= loox720_flash.o
-obj-$(CONFIG_LOOX720_ADS7846)	+= loox720_ads7846.o
+obj-$(CONFIG_LOOX720_ADS7846)	+= loox720_spi_ads7846.o
 
 #obj-m				+= loox720_test.o
