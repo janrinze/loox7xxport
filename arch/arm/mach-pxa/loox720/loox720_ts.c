@@ -36,31 +36,21 @@
 
 static int loox720_ads7846_pendown_state(void)
 {
-	return (gpio_get_value(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N) == 0);
+	return ((gpio_get_value(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N)) ? 0 : 1);
 }
 
 static struct ads7846_platform_data ads_info = {
-	.model			= 7846,
-	.vref_delay_usecs	= 100,		/* internal, no cap */
+	.model			= 7845,
 	.get_pendown_state	= loox720_ads7846_pendown_state,
-	// .x_plate_ohms		= 500,	/* GUESS! */
-	// .y_plate_ohms		= 500,	/* GUESS! */
 };
-static void ads7846_cs(u32 command)
-{
-	// no idea what this should do..
-	// SPI cs is the most likely candidate for resolving the cs
-
-	//static const unsigned	TS_nCS = 1 << 11;
-	//lubbock_set_misc_wr(TS_nCS, (command == PXA2XX_CS_ASSERT) ? 0 : TS_nCS);
-}
 
 static struct pxa2xx_spi_chip ads_hw = {
-	.tx_threshold		= 1,
-	.rx_threshold		= 1,
-	.cs_control		= ads7846_cs,
-	.timeout		= 13000000,
+	.tx_threshold		= 3,
+	.rx_threshold		= 3,
+//	.cs_control		= ads7846_cs,
+//	.timeout		= 1200,
 	.enable_loopback	= 0,
+	.dma_burst_size		= 0,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -69,7 +59,7 @@ static struct spi_board_info spi_board_info[] __initdata = {
 		.platform_data		= &ads_info,
 		.controller_data 	= &ads_hw,
 		.irq			= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-		.max_speed_hz		= 125000 * 26,
+		.max_speed_hz		= 100000,
 		.bus_num		= 1,
 		.chip_select		= 0,
 		.mode			= SPI_MODE_0,

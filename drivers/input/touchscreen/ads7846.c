@@ -17,6 +17,10 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+
+#define VERBOSE 1
+#define DEBUG 1
+
 #include <linux/hwmon.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -27,14 +31,6 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <asm/irq.h>
-
-#define VERBOSE 1
-#undef dev_dbg
-#define dev_dbg(dev, format, arg...)            \
-	dev_printk(KERN_DEBUG , dev , format , ## arg)
-#undef pr_debug
-#define pr_debug(fmt, arg...) \
-	printk(KERN_DEBUG fmt, ##arg)
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
@@ -69,9 +65,9 @@ struct ts_event {
 	 * with msbs zeroed).  Instead, we read them as two 8-bit values,
 	 * *** WHICH NEED BYTESWAPPING *** and range adjustment.
 	 */
-	u16	x;
-	u16	y;
-	u16	z1, z2;
+	u8	x[3];
+	u8	y[3];
+	u8	z1[3], z2[3];
 	int	ignore;
 };
 
@@ -92,8 +88,8 @@ struct ads7846 {
 	u16			x_plate_ohms;
 	u16			pressure_max;
 
-	u8			read_x, read_y, read_z1, read_z2, pwrdown;
-	u16			dummy;		/* for the pwrdown read */
+	u8			read_x[3], read_y[3], read_z1[3], read_z2[3], pwrdown[3];
+	u8			dummy[3];	/* for the pwrdown read */
 	struct ts_event		tc;
 
 	struct spi_transfer	xfer[18];
@@ -118,6 +114,7 @@ struct ads7846 {
 	unsigned		irq_disabled:1;	/* P: lock */
 	unsigned		disabled:1;
 	unsigned		is_suspended:1;
+	unsigned 		keep_vref:1;
 
 	int			(*filter)(void *data, int data_idx, int *val);
 	void			*filter_data;
@@ -167,7 +164,7 @@ struct ads7846 {
 #define	READ_Z2(vref)	(READ_12BIT_DFR(z2, 1, vref))
 
 #define	READ_X(vref)	(READ_12BIT_DFR(x,  1, vref))
-#define	PWRDOWN		(READ_12BIT_DFR(y,  0, 0))	/* LAST */
+#define	PWRDOWN(vref)	(READ_12BIT_DFR(y,  0, vref))	/* LAST */
 
 /* single-ended samples need to first power up reference voltage;
  * we leave both ADC and VREF powered
@@ -187,13 +184,13 @@ struct ads7846 {
  */
 
 struct ser_req {
-	u8			ref_on;
-	u8			command;
-	u8			ref_off;
-	u16			scratch;
-	__be16			sample;
+	u8			ref_on[3];
+	u8			command[3];
+	u8			ref_off[3];
+	u8			scratch[3];
+	u8			sample[3];
 	struct spi_message	msg;
-	struct spi_transfer	xfer[6];
+	struct spi_transfer	xfer[3];
 };
 
 static void ads7846_enable(struct ads7846 *ts);
@@ -223,41 +220,31 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	/* maybe turn on internal vREF, and let it settle */
 	if (use_internal) {
-		req->ref_on = REF_ON;
-		req->xfer[0].tx_buf = &req->ref_on;
-		req->xfer[0].len = 1;
-		spi_message_add_tail(&req->xfer[0], &req->msg);
-
-		req->xfer[1].rx_buf = &req->scratch;
-		req->xfer[1].len = 2;
-
+		req->ref_on[0] = REF_ON;
+		req->xfer[0].tx_buf = &req->ref_on[0];
+		req->xfer[0].rx_buf = &req->scratch[0];
+		req->xfer[0].len = 3;
 		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
-		req->xfer[1].delay_usecs = ts->vref_delay_usecs;
-		spi_message_add_tail(&req->xfer[1], &req->msg);
+		req->xfer[0].delay_usecs = ts->vref_delay_usecs;
+		spi_message_add_tail(&req->xfer[0], &req->msg);
 	}
 
 	/* take sample */
-	req->command = (u8) command;
-	req->xfer[2].tx_buf = &req->command;
-	req->xfer[2].len = 1;
-	spi_message_add_tail(&req->xfer[2], &req->msg);
-
-	req->xfer[3].rx_buf = &req->sample;
-	req->xfer[3].len = 2;
-	spi_message_add_tail(&req->xfer[3], &req->msg);
+	req->command[0] = (u8) command;
+	req->xfer[1].tx_buf = &req->command[0];
+	req->xfer[1].rx_buf = &req->sample[0];
+	req->xfer[1].len = 3;
+	spi_message_add_tail(&req->xfer[1], &req->msg);
 
 	/* REVISIT:  take a few more samples, and compare ... */
 
 	/* converter in low power mode & enable PENIRQ */
-	req->ref_off = PWRDOWN;
-	req->xfer[4].tx_buf = &req->ref_off;
-	req->xfer[4].len = 1;
-	spi_message_add_tail(&req->xfer[4], &req->msg);
-
-	req->xfer[5].rx_buf = &req->scratch;
-	req->xfer[5].len = 2;
-	CS_CHANGE(req->xfer[5]);
-	spi_message_add_tail(&req->xfer[5], &req->msg);
+	req->ref_off[0] = PWRDOWN(ts->keep_vref);
+	req->xfer[2].tx_buf = &req->ref_off[0];
+	req->xfer[2].rx_buf = &req->scratch[0];
+	req->xfer[2].len = 3;
+	CS_CHANGE(req->xfer[2]);
+	spi_message_add_tail(&req->xfer[2], &req->msg);
 
 	ts->irq_disabled = 1;
 	disable_irq(spi->irq);
@@ -267,7 +254,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	if (status == 0) {
 		/* on-wire is a must-ignore bit, a BE12 value, then padding */
-		status = be16_to_cpu(req->sample);
+		status = (req->sample[1] << 8) | (req->sample[2]);
 		status = status >> 3;
 		status &= 0x0fff;
 	}
@@ -511,14 +498,14 @@ static void ads7846_rx(void *ads)
 	struct ads7846		*ts = ads;
 	unsigned		Rt;
 	u16			x, y, z1, z2;
-
+	
 	/* ads7846_rx_val() did in-place conversion (including byteswap) from
 	 * on-the-wire format as part of debouncing to get stable readings.
 	 */
-	x = ts->tc.x;
-	y = ts->tc.y;
-	z1 = ts->tc.z1;
-	z2 = ts->tc.z2;
+	x = *(u16 *)(&ts->tc.x[0]);
+	y = *(u16 *)(&ts->tc.y[0]);
+	z1 = *(u16 *)(&ts->tc.z1[0]);
+	z2 = *(u16 *)(&ts->tc.z2[0]);
 
 	/* range filtering */
 	if (x == MAX_12BIT)
@@ -640,7 +627,7 @@ static void ads7846_rx_val(void *ads)
 	struct ads7846 *ts = ads;
 	struct spi_message *m;
 	struct spi_transfer *t;
-	u16 *rx_val;
+	u8 *rx_val;
 	int val;
 	int action;
 	int status;
@@ -652,7 +639,7 @@ static void ads7846_rx_val(void *ads)
 	/* adjust:  on-wire is a must-ignore bit, a BE12 value, then padding;
 	 * built from two 8 bit values written msb-first.
 	 */
-	val = be16_to_cpu(*rx_val) >> 3;
+	val = ((rx_val[1] << 8) | rx_val[2]) >> 3;
 
 	action = ts->filter(ts->filter_data, ts->msg_idx, &val);
 	switch (action) {
@@ -666,7 +653,7 @@ static void ads7846_rx_val(void *ads)
 		m = ts->last_msg;
 		break;
 	case ADS7846_FILTER_OK:
-		*rx_val = val;
+		*(u16 *)rx_val = val;
 		ts->tc.ignore = 0;
 		m = &ts->msg[++ts->msg_idx];
 		break;
@@ -928,6 +915,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	vref = pdata->keep_vref_on;
+	ts->keep_vref = ((pdata->keep_vref_on) ? 1 : 0);
 
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
@@ -938,14 +926,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	spi_message_init(m);
 
 	/* y- still on; turn on only y+ (and ADC) */
-	ts->read_y = READ_Y(vref);
-	x->tx_buf = &ts->read_y;
-	x->len = 1;
-	spi_message_add_tail(x, m);
-
-	x++;
-	x->rx_buf = &ts->tc.y;
-	x->len = 2;
+	ts->read_y[0] = READ_Y(vref);
+	x->tx_buf = &ts->read_y[0];
+	x->rx_buf = &ts->tc.y[0];
+	x->len = 3;
 	spi_message_add_tail(x, m);
 
 	/* the first sample after switching drivers can be low quality;
@@ -956,13 +940,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		x->delay_usecs = pdata->settle_delay_usecs;
 
 		x++;
-		x->tx_buf = &ts->read_y;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &ts->tc.y;
-		x->len = 2;
+		x->tx_buf = &ts->read_y[0];
+		x->rx_buf = &ts->tc.y[0];
+		x->len = 3;
 		spi_message_add_tail(x, m);
 	}
 
@@ -974,14 +954,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	/* turn y- off, x+ on, then leave in lowpower */
 	x++;
-	ts->read_x = READ_X(vref);
-	x->tx_buf = &ts->read_x;
-	x->len = 1;
-	spi_message_add_tail(x, m);
-
-	x++;
-	x->rx_buf = &ts->tc.x;
-	x->len = 2;
+	ts->read_x[0] = READ_X(vref);
+	x->tx_buf = &ts->read_x[0];
+	x->rx_buf = &ts->tc.x[0];
+	x->len = 3;
 	spi_message_add_tail(x, m);
 
 	/* ... maybe discard first sample ... */
@@ -989,13 +965,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		x->delay_usecs = pdata->settle_delay_usecs;
 
 		x++;
-		x->tx_buf = &ts->read_x;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &ts->tc.x;
-		x->len = 2;
+		x->tx_buf = &ts->read_x[0];
+		x->rx_buf = &ts->tc.x[0];
+		x->len = 3;
 		spi_message_add_tail(x, m);
 	}
 
@@ -1008,14 +980,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		spi_message_init(m);
 
 		x++;
-		ts->read_z1 = READ_Z1(vref);
-		x->tx_buf = &ts->read_z1;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &ts->tc.z1;
-		x->len = 2;
+		ts->read_z1[0] = READ_Z1(vref);
+		x->tx_buf = &ts->read_z1[0];
+		x->rx_buf = &ts->tc.z1[0];		
+		x->len = 3;
 		spi_message_add_tail(x, m);
 
 		/* ... maybe discard first sample ... */
@@ -1023,13 +991,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			x->delay_usecs = pdata->settle_delay_usecs;
 
 			x++;
-			x->tx_buf = &ts->read_z1;
-			x->len = 1;
-			spi_message_add_tail(x, m);
-
-			x++;
-			x->rx_buf = &ts->tc.z1;
-			x->len = 2;
+			x->tx_buf = &ts->read_z1[0];
+			x->rx_buf = &ts->tc.z1[0];
+			x->len = 3;
 			spi_message_add_tail(x, m);
 		}
 
@@ -1040,14 +1004,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		spi_message_init(m);
 
 		x++;
-		ts->read_z2 = READ_Z2(vref);
-		x->tx_buf = &ts->read_z2;
-		x->len = 1;
-		spi_message_add_tail(x, m);
-
-		x++;
-		x->rx_buf = &ts->tc.z2;
-		x->len = 2;
+		ts->read_z2[0] = READ_Z2(vref);
+		x->tx_buf = &ts->read_z2[0];
+		x->rx_buf = &ts->tc.z2[0];		
+		x->len = 3;
 		spi_message_add_tail(x, m);
 
 		/* ... maybe discard first sample ... */
@@ -1055,13 +1015,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			x->delay_usecs = pdata->settle_delay_usecs;
 
 			x++;
-			x->tx_buf = &ts->read_z2;
-			x->len = 1;
-			spi_message_add_tail(x, m);
-
-			x++;
-			x->rx_buf = &ts->tc.z2;
-			x->len = 2;
+			x->tx_buf = &ts->read_z2[0];
+			x->rx_buf = &ts->tc.z2[0];
+			x->len = 3;
 			spi_message_add_tail(x, m);
 		}
 
@@ -1074,17 +1030,12 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	spi_message_init(m);
 
 	x++;
-	ts->pwrdown = PWRDOWN;
-	x->tx_buf = &ts->pwrdown;
-	x->len = 1;
+	ts->pwrdown[0] = PWRDOWN(vref);
+	x->tx_buf = &ts->pwrdown[0];
+	x->rx_buf = &ts->dummy[0];
+	x->len = 3;
 	spi_message_add_tail(x, m);
-
-	x++;
-	x->rx_buf = &ts->dummy;
-	x->len = 2;
-	CS_CHANGE(*x);
-	spi_message_add_tail(x, m);
-
+	
 	m->complete = ads7846_rx;
 	m->context = ts;
 
