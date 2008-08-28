@@ -114,7 +114,6 @@ struct ads7846 {
 	unsigned		irq_disabled:1;	/* P: lock */
 	unsigned		disabled:1;
 	unsigned		is_suspended:1;
-	unsigned 		keep_vref:1;
 
 	int			(*filter)(void *data, int data_idx, int *val);
 	void			*filter_data;
@@ -164,7 +163,7 @@ struct ads7846 {
 #define	READ_Z2(vref)	(READ_12BIT_DFR(z2, 1, vref))
 
 #define	READ_X(vref)	(READ_12BIT_DFR(x,  1, vref))
-#define	PWRDOWN(vref)	(READ_12BIT_DFR(y,  0, vref))	/* LAST */
+#define	PWRDOWN		(READ_12BIT_DFR(y,  0, 0))	/* LAST */
 
 /* single-ended samples need to first power up reference voltage;
  * we leave both ADC and VREF powered
@@ -239,7 +238,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	/* REVISIT:  take a few more samples, and compare ... */
 
 	/* converter in low power mode & enable PENIRQ */
-	req->ref_off[0] = PWRDOWN(ts->keep_vref);
+	req->ref_off[0] = PWRDOWN;
 	req->xfer[2].tx_buf = &req->ref_off[0];
 	req->xfer[2].rx_buf = &req->scratch[0];
 	req->xfer[2].len = 3;
@@ -915,7 +914,6 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	vref = pdata->keep_vref_on;
-	ts->keep_vref = ((pdata->keep_vref_on) ? 1 : 0);
 
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
@@ -1030,7 +1028,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	spi_message_init(m);
 
 	x++;
-	ts->pwrdown[0] = PWRDOWN(vref);
+	ts->pwrdown[0] = PWRDOWN;
 	x->tx_buf = &ts->pwrdown[0];
 	x->rx_buf = &ts->dummy[0];
 	x->len = 3;
