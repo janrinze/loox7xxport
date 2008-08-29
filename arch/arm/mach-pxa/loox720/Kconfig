@@ -10,6 +10,7 @@ config LOOX720_LCD
 
 choice
     prompt "touchscreen selection"
+    default LOOX720_ADS7846
 
 config LOOX720_NO_TS
     bool "disabled"
@@ -26,7 +27,7 @@ config LOOX720_TS
 	SPI driver is very recommended.
 
 config LOOX720_ADS7846
-    bool "FSC Loox 720 simple direct SPI"
+    bool "FSC Loox 720 simple direct SPI (Recommended)"
     select SPI
     select SPI_PXA2XX
     depends on MACH_LOOX720
