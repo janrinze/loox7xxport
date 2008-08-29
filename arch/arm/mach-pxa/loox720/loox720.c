@@ -404,7 +404,7 @@ static struct platform_device loox720_pxa_keys = {
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.clock_enable = CKEN_SSP1,
 	.num_chipselect	= 1,
-	.enable_dma = 1,
+	.enable_dma = 0,
 };
 
 static struct platform_device pxa_ssp = {
@@ -741,18 +741,19 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_LOOX720_ADS7846
 static struct pxa2xx_spi_chip loox720_spi_ads7846_hw = {
-	.tx_threshold		= 10,
-	.rx_threshold		= 10,
+	.tx_threshold		= 5,
+	.rx_threshold		= 5,
 	//.cs_control		= ads7846_cs,
-	.timeout		= 130000,
+	.timeout		= 1000,
 	.enable_loopback	= 0,
+	.dma_burst_size		= 0,
 };
 static struct spi_board_info spi_board_info[] __initdata = {
 	{
 		.modalias		= "loox720_spi_ads7846",
 		.controller_data 	= &loox720_spi_ads7846_hw,
 		.irq			= IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-		.max_speed_hz		= 50000 ,
+		.max_speed_hz		= 200000 ,
 		.bus_num		= 1,
 		.chip_select		= 0,
 		.mode			= SPI_MODE_0,

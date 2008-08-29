@@ -21,7 +21,9 @@ config LOOX720_TS
     select SPI_PXA2XX
     select TOUCHSCREEN_ADS7846
     help
-        This driver provides support for touchscreen using the ads8746 SPI driver.
+        This driver provides support for touchscreen using the ads8746 SPI driver,
+	which is badly broken and probably doesn't even work... The simple direct
+	SPI driver is very recommended.
 
 config LOOX720_ADS7846
     bool "FSC Loox 720 simple direct SPI"
@@ -34,6 +36,14 @@ config LOOX720_ADS7846
         a direct call to the ads chip over SPI.
 
 endchoice
+
+config LOOX720_ADS7846_AUTOCAL
+    bool "Enable touchscreen autocalibration"
+    depends on LOOX720_ADS7846
+    help
+        The simple direct SPI driver supports autocalibration feature.
+	Just draw a rectangle along all the four edges and the touchscreen
+	will be calibrated. At the moment useful only with Android.
 
 config LOOX720_BUTTONS
     bool "FSC Loox 720 Buttons"
