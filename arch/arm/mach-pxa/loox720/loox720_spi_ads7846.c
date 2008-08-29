@@ -10,9 +10,11 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/spinlock.h>
 
 #include <linux/spi/spi.h>
 #include <linux/input.h>
+#include <linux/hwmon.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/loox720.h>
@@ -39,16 +41,30 @@
    ========================================================== */
 
 static loox720_ads7846_spi_message ads_cmds[] = {
-	{ .cmd = READ_X(1)<<7, }, // setup x 
-	{ .cmd = READ_X(0)<<7, }, // read x 
-	{ .cmd = READ_Y(1)<<7, }, // setup y
-	{ .cmd = READ_Y(0)<<7, }, // read y
-	{ .cmd = READ_Z1(1)<<7, }, // read z1
-	{ .cmd = READ_Z2(1)<<7, }, // read z2
-	{ .cmd = READ_X(1)<<7, },  // power down
-	{ .cmd = READ_X(0)<<7, },
-	{ .cmd = PWRDOWN<<7, },
+	{ .cmd = READ_X(1) << 7, }, // setup x 
+	{ .cmd = READ_X(0) << 7, }, // read x 
+	{ .cmd = READ_Y(1) << 7, }, // setup y
+	{ .cmd = READ_Y(0) << 7, }, // read y
+	{ .cmd = READ_Z1(1) << 7, }, // read z1
+	{ .cmd = READ_Z2(1) << 7, }, // read z2
+	{ .cmd = READ_X(1) << 7, }, // penirq fix
+	{ .cmd = PWRDOWN << 7, }, // nop
 };
+
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+
+static loox720_ads7846_spi_message ads_hwmon_cmds[] = {
+	{ .cmd = READ_12BIT_SER(temp0) << 7, }, // read temp0
+	{ .cmd = READ_12BIT_SER(vbatt) << 7, }, // read vbatt
+	{ .cmd = READ_12BIT_SER(vaux) << 7, }, // read vaux
+	{ .cmd = READ_12BIT_SER(temp1) << 7, }, // read temp1
+	{ .cmd = READ_X(1) << 7, }, // fix penirq
+	{ .cmd = READ_X(0) << 7, }, // fix penirq
+	{ .cmd = PWRDOWN << 7, }, // power down
+	{ .cmd = 0x0000, }, // nop
+};
+
+#endif
 
 /* ==========================================================
 	SPI block read/write interface
@@ -57,7 +73,7 @@ static loox720_ads7846_spi_message ads_cmds[] = {
 int SPI_read_write_block(loox720_ads7846_device_info * dev, loox720_ads7846_spi_message * msg, int num_commands, void (*callback)(void *))
 {
 	int i;
-	struct spi_transfer *x = &dev->xfer[0];
+	struct spi_transfer *x = &dev->xfer;
 	struct spi_message  *m = &dev->msg;
 
 	// copy the messages to our block
@@ -67,7 +83,7 @@ int SPI_read_write_block(loox720_ads7846_device_info * dev, loox720_ads7846_spi_
 	spi_message_init(m);
 	x->tx_buf = &dev->sendblock[0];
 	x->rx_buf = &dev->receiveblock[0];
-	x->len = num_commands*sizeof(dev->sendblock[0]); // 7 messages
+	x->len = num_commands*sizeof(dev->sendblock[0]); // 8 messages
 	spi_message_add_tail(x, m);
 	
 	m->complete = callback;
@@ -75,6 +91,138 @@ int SPI_read_write_block(loox720_ads7846_device_info * dev, loox720_ads7846_spi_
 
 	return spi_async(dev->spi,m);
 }
+
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+/* ==========================================================
+	hwmon interface
+   ========================================================== */
+
+static void SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads, loox720_ads7846_spi_message * msg, int num_commands)
+{
+	int i;
+	struct spi_transfer *x = &ads->hwmon_xfer;
+	struct spi_message  *m = &ads->hwmon_msg;
+
+	// copy the messages to our block
+	for (i=0;i<num_commands;i++)
+		ads->hwmon_sendblock[i]=msg[i].cmd;
+
+	spi_message_init(m);
+	x->tx_buf = &ads->hwmon_sendblock[0];
+	x->rx_buf = &ads->hwmon_receiveblock[0];
+	x->len = num_commands*sizeof(ads->hwmon_sendblock[0]); // 8 messages
+	spi_message_add_tail(x, m);
+	
+	printk(KERN_DEBUG "loox720_spi_ads7846: Reading hwmon data\n");
+
+	spi_sync(ads->spi,m);
+	
+	ads->hwmon_data.temp0  = convert_hwmon_data_12( ads, 0);
+	ads->hwmon_data.vbatt  = convert_hwmon_data_12( ads, 1 );
+	ads->hwmon_data.vaux = convert_hwmon_data_12( ads, 2 );
+	ads->hwmon_data.temp1 = convert_hwmon_data_12( ads, 3 );
+}
+
+#define SHOW(name, var, adjust) static ssize_t \
+name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
+{ \
+	ssize_t v; \
+	loox720_ads7846_device_info *ads = dev_get_drvdata(dev); \
+	\
+	SPI_hwmon_read_write_block( ads , ads_hwmon_cmds , ARRAY_SIZE(ads_hwmon_cmds)); \
+	v = ads->hwmon_data.var; \
+	\
+	if (v < 0) \
+		return v; \
+	return sprintf(buf, "%u\n", adjust(ads, v)); \
+} \
+static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
+
+
+/* Sysfs conventions report temperatures in millidegrees Celcius.
+ * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
+ * accuracy scheme without calibration data.  For now we won't try either;
+ * userspace sees raw sensor values, and must scale/calibrate appropriately.
+ */
+static inline unsigned null_adjust(loox720_ads7846_device_info *ads, ssize_t v)
+{
+	return v;
+}
+SHOW(temp0, temp0, null_adjust)		/* temp1_input */
+SHOW(temp1, temp1, null_adjust)		/* temp2_input */
+
+/* sysfs conventions report voltages in millivolts.  We can convert voltages
+ * if we know vREF.  userspace may need to scale vAUX to match the board's
+ * external resistors; we assume that vBATT only uses the internal ones.
+ */
+static inline unsigned vaux_adjust(loox720_ads7846_device_info *ads, ssize_t v)
+{
+	unsigned retval = v;
+
+	/* external resistors may scale vAUX into 0..vREF */
+	retval *= ads->vref_mv;
+	retval = retval >> 12;
+	return retval;
+}
+SHOW(in0_input, vaux, vaux_adjust)
+
+static inline unsigned vbatt_adjust(loox720_ads7846_device_info *ads, ssize_t v)
+{
+	unsigned retval = vaux_adjust(ads, v);
+
+	retval *= 4;
+	return retval;
+}
+SHOW(in1_input, vbatt, vbatt_adjust)
+
+static struct attribute *ads7846_attributes[] = {
+	&dev_attr_temp0.attr,
+	&dev_attr_temp1.attr,
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	NULL,
+};
+
+static struct attribute_group ads7846_attr_group = {
+	.attrs = ads7846_attributes,
+};
+
+static int ads784x_hwmon_register(struct spi_device *spi, loox720_ads7846_device_info *ads)
+{
+	struct device *hwmon;
+	int err;
+
+	if (!ads->vref_mv) {
+		dev_dbg(&spi->dev, "assuming 2.5V internal vREF\n");
+		ads->vref_mv = 2500;
+	}
+	
+	ads->attr_group = &ads7846_attr_group;
+
+	err = sysfs_create_group(&spi->dev.kobj, ads->attr_group);
+	if (err)
+		return err;
+
+	hwmon = hwmon_device_register(&spi->dev);
+	if (IS_ERR(hwmon)) {
+		sysfs_remove_group(&spi->dev.kobj, ads->attr_group);
+		return PTR_ERR(hwmon);
+	}
+
+	ads->hwmon = hwmon;
+	return 0;
+}
+
+static void ads784x_hwmon_unregister(struct spi_device *spi,
+				     loox720_ads7846_device_info *ads)
+{
+	if (ads->hwmon) {
+		sysfs_remove_group(&spi->dev.kobj, ads->attr_group);
+		hwmon_device_unregister(ads->hwmon);
+	}
+}
+
+#endif
 
 /* ==========================================================
 	input layer reporting interface
@@ -92,9 +240,6 @@ void loox720_ads7846_report(loox720_ads7846_device_info * dev, unsigned int Rt, 
 		input_report_abs(dev->input, ABS_PRESSURE, Rt);
 		input_sync(dev->input);
 }
-
-
-#define convert_data_12( data, pos ) (((data)->receiveblock[ pos ] &0x3f)<<6)|(((data)->receiveblock[ pos + 1] &0xfc00)>>10)
 
 /* ==========================================================
 	spi routines
@@ -306,7 +451,7 @@ static int __init loox720_ads7846_probe(struct spi_device *spi)
 		goto err_no_mem;
 
 	ads->input = input_dev;
-
+	
 	if (request_irq(ads->irq, pendown_interrupt,
 			IRQF_TRIGGER_FALLING,
 			myname, ads)) {
@@ -314,6 +459,10 @@ static int __init loox720_ads7846_probe(struct spi_device *spi)
 		err = -ENOMEM;
 		goto err_remove_input;
 		};
+	
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+	ads784x_hwmon_register(spi, ads);
+#endif
 
 	return 0;
 
@@ -327,6 +476,9 @@ err_no_mem:
 static int __devexit loox720_ads7846_remove(struct spi_device *spi)
 {
 	loox720_ads7846_device_info * dev_info = dev_get_drvdata(&spi->dev);
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+	ads784x_hwmon_unregister(spi, dev_info);
+#endif
 	free_irq(dev_info->irq,dev_info);
 	if (dev_info->input) input_unregister_device(dev_info->input);
 	return 0;

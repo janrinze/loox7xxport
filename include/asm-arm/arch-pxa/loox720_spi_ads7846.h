@@ -46,29 +46,51 @@
 
 #define	MAX_12BIT	((1<<12)-1)
 
+#define convert_data_12( data, pos ) (((data)->receiveblock[ pos ] &0x3f)<<6)|(((data)->receiveblock[ pos + 1] &0xfc00)>>10)
+#define convert_hwmon_data_12( data, pos ) (((data)->hwmon_receiveblock[ pos ] &0x3f)<<6)|(((data)->hwmon_receiveblock[ pos + 1] &0xfc00)>>10)
+
 typedef struct loox720_ads7846_spi_message
 {
 	unsigned int		cmd;
 	unsigned int		data;
 } loox720_ads7846_spi_message;
 
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+typedef struct loox720_ads7846_hwmon_data {
+	volatile unsigned int	temp0;
+	volatile unsigned int	vaux;
+	volatile unsigned int	vbatt;
+	volatile unsigned int	temp1;
+} loox720_ads7846_hwmon_data;
+#endif
+
 typedef struct loox720_ads7846_device_info {
-	unsigned int 		irq,pen;
-	volatile unsigned int 	x, y, oldx, oldy, rt;
-	unsigned int		xmin, xmax, ymin, ymax;
-	unsigned int 		sample_rate;
-	unsigned int		pen_recheck_usecs;
-	volatile int		busy;
-//	volatile int		pendown;
-	void * 			input;
-	struct spi_device 	*spi;
-	struct spi_transfer	xfer[9];
-	struct spi_message	msg;
-	unsigned short 		sendblock[18];
-	unsigned short		receiveblock[18];
-	unsigned int		report_button;
-	struct hrtimer timer;
-	struct work_struct work;	
+	unsigned int 			irq,pen;
+	volatile unsigned int 		x, y, rt;
+	unsigned int			xmin, xmax, ymin, ymax;
+	unsigned int 			sample_rate;
+	unsigned int			pen_recheck_usecs;
+	volatile int			busy;
+//	volatile int			pendown;
+	void * 				input;
+	struct spi_device 		*spi;
+	struct spi_transfer		xfer;
+	struct spi_message		msg;
+	unsigned short 			sendblock[16];
+	unsigned short			receiveblock[16];
+	unsigned int			report_button;
+	struct hrtimer			timer;
+	struct work_struct		work;	
+#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
+	struct attribute_group		*attr_group;
+	struct device			*hwmon;
+	loox720_ads7846_hwmon_data	hwmon_data;
+	u16				vref_mv;
+	struct spi_transfer		hwmon_xfer;
+	struct spi_message		hwmon_msg;
+	unsigned short 			hwmon_sendblock[16];
+	unsigned short			hwmon_receiveblock[16];
+#endif
 } loox720_ads7846_device_info;
 
 static inline unsigned int readpen(loox720_ads7846_device_info *dev)	\

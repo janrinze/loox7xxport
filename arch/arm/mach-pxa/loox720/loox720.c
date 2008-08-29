@@ -741,8 +741,8 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_LOOX720_ADS7846
 static struct pxa2xx_spi_chip loox720_spi_ads7846_hw = {
-	.tx_threshold		= 9,
-	.rx_threshold		= 9,
+	.tx_threshold		= 8,
+	.rx_threshold		= 8,
 	//.cs_control		= ads7846_cs,
 	.timeout		= 1000,
 	.enable_loopback	= 0,
