@@ -153,7 +153,7 @@ static int __init gpioed_init(void)
 {
 	proc_intf = create_proc_entry(PROCFS_NAME, 0644, NULL);
 	if (proc_intf == NULL) {
-		remove_proc_entry(PROCFS_NAME, &proc_root);
+		remove_proc_entry(PROCFS_NAME, NULL);
 		printk(KERN_ALERT "Error: Could not initialize /proc/%s\n", PROCFS_NAME);
 		return -ENOMEM;
 	}
@@ -176,7 +176,7 @@ static int __init gpioed_init(void)
 static void __exit gpioed_exit(void)
 {
 	debugfs_remove(debugfs_intf);
-	remove_proc_entry(PROCFS_NAME, &proc_root);
+	remove_proc_entry(PROCFS_NAME, NULL);
 	printk(KERN_INFO "/proc/%s removed\n", PROCFS_NAME);
 }
 
