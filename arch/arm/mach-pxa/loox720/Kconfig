@@ -79,7 +79,7 @@ config LOOX720_FLASH
     select MTD_CFI
     select MTD_PARTITIONS
     select MTD_CFI_INTELEXT
-    select MTD_PHYSMAP
+    select MTD_PXA2XX
     depends on MACH_LOOX720
     help
         FSC Loox 720 internal flash ROM support.
