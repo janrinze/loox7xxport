@@ -98,9 +98,10 @@ These looks like a piece of garbage, because wince doesn't use them...
 #define LOOX720_CPLD_LCD_BIT2			161 // Blanking: 5th Unblanking: 1st
 #define LOOX720_CPLD_CF_RESET			162
 #define LOOX720_CPLD_SERIAL_BIT			163
-#define LOOX720_CPLD_CS1			176
-#define LOOX720_CPLD_CS2			177
-#define LOOX720_CPLD_CS3			178	
+#define LOOX720_CPLD_VAUX_CTL1			176
+#define LOOX720_CPLD_VAUX_CTL2			177
+#define LOOX720_CPLD_VAUX_CTL3			178	
+#define LOOX720_CPLD_VAUX_CTL4			179
 #define LOOX720_CPLD_BLUETOOTH_POWER		192
 #define LOOX720_CPLD_CF_RESET_N			193 // False...
 #define LOOX720_CPLD_CAMERA_FLASH_BIT		195
