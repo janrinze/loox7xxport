@@ -1,35 +1,19 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <asm/mach-types.h>
-#include <linux/spi/ads7846.h>
-#include <linux/touchscreen-adc.h>
-#include <linux/adc_battery.h>
+#include <linux/pda_power.h>
+#include <linux/power_supply.h>
 
 #include "../generic.h"
 
-
-static struct battery_adc_platform_data loox720_battery_params = {
-    .battery_info = {
-	.name = "main-battery",
-	.voltage_max_design = 1400000,
-	.voltage_min_design = 1000000,
-	.charge_full_design = 100000,
-    },
-    .voltage_pin = "ads7846-ssp:vaux",
-};
-
-static struct platform_device loox720_battery = { 
-    .name = "adc-battery",
-    .id = -1,
-    .dev = {
-	.platform_data = &loox720_battery_params,
-    }
-};
+/*
+ * External power
+ */
 
 static int __devinit loox720_battery_probe(struct platform_device *dev)
 {
-    platform_device_register(&loox720_battery);
-    return 0;
+//	platform_device_register(&power_supply);
+	return 0;
 }
 
 static struct platform_driver loox720_battery_driver = {
