@@ -148,6 +148,14 @@ endchoice
 
 source "arch/arm/mach-pxa/loox720/Kconfig"
 
+config PXA27x_VOLTAGE
+	tristate "Support PXA27x CPU Core Voltage Change Sequencer"
+	depends on PXA27x && CPU_FREQ
+
+config PXA27x_VOLTAGE_MAX158xx
+	tristate "MAX158xx PMIC"
+	depends on PXA27x_VOLTAGE
+
 choice
 	prompt "Used baseboard"
 	depends on MACH_PCM027

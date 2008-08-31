@@ -59,3 +59,6 @@ obj-$(CONFIG_LEDS)		+= $(led-y)
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
 endif
+
+obj-$(CONFIG_PXA27x_VOLTAGE)            += pxa27x_voltage.o
+obj-$(CONFIG_PXA27x_VOLTAGE_MAX158xx)   += pxa27x_voltage_max158xx.o
