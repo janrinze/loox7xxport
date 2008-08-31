@@ -518,7 +518,6 @@ static void loox7xx_mci_exit(struct device *dev, void *data)
 
 static struct pxamci_platform_data loox7xx_mci_info = {
 	.ocr_mask 	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay	= 20,
 	.init     	= loox7xx_mci_init,
 	.get_ro   	= loox7xx_mci_get_ro,
 	.setpower 	= loox7xx_mci_setpower,
@@ -622,7 +621,6 @@ static void __init loox720_init( void )
 //#ifdef CONFIG_LOOX720_BT
 //	pxa_set_btuart_info(&loox720_pxa_bt_funcs);
 //#endif
-	loox7xx_mci_info.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&loox7xx_mci_info);
 //	corgi_ssp_set_machinfo(&loox720_ssp_machinfo);
 
