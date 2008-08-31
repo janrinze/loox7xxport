@@ -21,7 +21,8 @@
 #include <linux/platform_device.h>
 #include <asm/arch/pxa27x_voltage.h>
 
-static u_int8_t max158xx_address = 0x14;
+#define MAX158XX_DEF_ADDR	0x14
+static u_int8_t max158xx_address = MAX158XX_DEF_ADDR;
 module_param(max158xx_address, byte, 0644);
 MODULE_PARM_DESC(max158xx_address, "MAX158xx address on I2C bus (0x14/0x16)");
 
@@ -32,35 +33,27 @@ static inline u_int8_t mv2cmd (int mv)
 	return val;
 }
 
-static struct platform_device *pdev;
+static struct pxa27x_voltage_chip max158xx_chip = {
+	.mv2cmd		= mv2cmd,
+};
+
+static struct platform_device max158xx_pdev = {
+	.name 	= "pxa27x-voltage",
+	.id	= -1,
+	.dev = {
+		.platform_data = &max158xx_chip,
+	},
+};
 
 static int __init max158xx_init(void)
 {
-	int ret;
-	struct pxa27x_voltage_chip chip;
-	
-	memset(&chip, 0, sizeof(chip));
-	chip.address = max158xx_address;
-	chip.mv2cmd  = mv2cmd;
-
-	pdev = platform_device_alloc("pxa27x-voltage", -1);
-	if (!pdev) return -ENOMEM;
-	
-	ret = platform_device_add_data(pdev, &chip, sizeof(chip));
-	if (ret) goto failed;
-	
-	ret = platform_device_register(pdev);
-	if (ret) goto failed;
-
-	return 0;
-failed:
-	platform_device_put(pdev);
-	return ret;
+	max158xx_chip.address = max158xx_address;
+	return platform_device_register(&max158xx_pdev);
 }
 
 static void __exit max158xx_exit(void)
 {
-	platform_device_unregister(pdev);
+	platform_device_unregister(&max158xx_pdev);
 	return;
 }
 
