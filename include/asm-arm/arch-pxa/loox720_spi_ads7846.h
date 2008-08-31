@@ -39,7 +39,7 @@
  * we leave both ADC and VREF powered
  */
 #define	READ_12BIT_SER(x) (ADS_START | ADS_A2A1A0_ ## x \
-	| ADS_12_BIT | ADS_SER)
+	| ADS_12_BIT | ADS_SER | ADS_PD10_ADC_ON)
 
 #define	REF_ON	(READ_12BIT_DFR(x, 1, 1))
 #define	REF_OFF	(READ_12BIT_DFR(y, 0, 0))
@@ -48,6 +48,11 @@
 
 #define convert_data_12( data, pos ) (((data)->receiveblock[ pos ] &0x3f)<<6)|(((data)->receiveblock[ pos + 1] &0xfc00)>>10)
 #define convert_hwmon_data_12( data, pos ) (((data)->hwmon_receiveblock[ pos ] &0x3f)<<6)|(((data)->hwmon_receiveblock[ pos + 1] &0xfc00)>>10)
+
+#define LOOX720_CPLD_VAUX_VBATT		0
+#define LOOX720_CPLD_VAUX_IBATT		1
+#define LOOX720_CPLD_VAUX_TBATT		3
+#define LOOX720_CPLD_VAUX_UNK		7
 
 typedef struct loox720_ads7846_spi_message
 {

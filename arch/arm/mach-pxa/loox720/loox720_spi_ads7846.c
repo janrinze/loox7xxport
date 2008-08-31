@@ -151,6 +151,31 @@ name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 } \
 static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
 
+static void loox720_ads7846_set_hwmon_port(unsigned int cpld)
+{
+	loox720_egpio_set_bit(LOOX720_CPLD_VAUX_CTL1, cpld & 1);
+	loox720_egpio_set_bit(LOOX720_CPLD_VAUX_CTL2, cpld & 2);
+	loox720_egpio_set_bit(LOOX720_CPLD_VAUX_CTL3, cpld & 4);
+}
+
+#ifdef CONFIG_MACH_LOOX720
+
+#define LOOX720_SHOW(name, var, adjust, cpld) static ssize_t \
+name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
+{ \
+	ssize_t v; \
+	loox720_ads7846_device_info *ads = dev_get_drvdata(dev); \
+	\
+	loox720_ads7846_set_hwmon_port(cpld);\
+	v = SPI_hwmon_read_write_block( ads , ads_hwmon_ ## var , ARRAY_SIZE(ads_hwmon_ ## var)); \
+	\
+	if (v < 0) \
+		return v; \
+	return sprintf(buf, "%u\n", adjust(ads, v)); \
+} \
+static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
+
+#endif
 
 /* Sysfs conventions report temperatures in millidegrees Celcius.
  * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
@@ -177,7 +202,14 @@ static inline unsigned vaux_adjust(loox720_ads7846_device_info *ads, ssize_t v)
 	retval = retval >> 12;
 	return retval;
 }
+#ifndef CONFIG_MACH_LOOX720
 SHOW(in0_input, vaux, vaux_adjust)
+#else
+LOOX720_SHOW(loox720_vbatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_VBATT)
+LOOX720_SHOW(loox720_ibatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_IBATT)
+LOOX720_SHOW(loox720_tbatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_TBATT)
+LOOX720_SHOW(loox720_ext, vaux, vaux_adjust, LOOX720_CPLD_VAUX_UNK)
+#endif
 
 static inline unsigned vbatt_adjust(loox720_ads7846_device_info *ads, ssize_t v)
 {
@@ -191,7 +223,14 @@ SHOW(in1_input, vbatt, vbatt_adjust)
 static struct attribute *ads7846_attributes[] = {
 	&dev_attr_temp0.attr,
 	&dev_attr_temp1.attr,
+#ifndef CONFIG_MACH_LOOX720
 	&dev_attr_in0_input.attr,
+#else
+	&dev_attr_loox720_vbatt.attr,
+	&dev_attr_loox720_ibatt.attr,
+	&dev_attr_loox720_tbatt.attr,
+	&dev_attr_loox720_ext.attr,
+#endif
 	&dev_attr_in1_input.attr,
 	NULL,
 };
