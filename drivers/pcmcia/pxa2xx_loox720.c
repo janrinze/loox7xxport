@@ -37,44 +37,23 @@
 #include "soc_common.h"
 
 static struct pcmcia_irqs irqs[] = {
-	{ 1, LOOX720_CPLD_IRQ(CARD_DETECT), "PCMCIA1 CD" }
+	{ 1, LOOX720_CPLD_IRQ(CARD_DETECT), "PCMCIA1 CD" },
 };
 
 static int loox720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-#if 0
-	/*
-	 * Setup default state of GPIO outputs
-	 * before we enable them as outputs.
-	 */
-	GPSR(GPIO48_nPOE) =
-		GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |
-		GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) |
-		GPIO_bit(GPIO85_nPCE_1) |
-		GPIO_bit(GPIO54_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO85_nPCE_1_MD);
-	pxa_gpio_mode(GPIO54_nPCE_2_MD);
-	pxa_gpio_mode(GPIO79_pSKTSEL_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-#endif
-
 	skt->irq = (skt->nr == 1) ? LOOX720_CPLD_IRQ(CF) : LOOX720_CPLD_IRQ(WIFI);
 	printk(KERN_INFO "loox720_pcmcia: Using IRQ %d for socket %d.\n", skt->irq, skt->nr);
-	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
+	if(skt->nr == 1)
+		return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
+	else
+		return 0;
 }
 
 static void loox720_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
-	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
+	if(skt->nr == 1)
+		soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
 #define GPLR_BIT(n) (GPLR((n)) & GPIO_bit((n)))
