@@ -208,16 +208,8 @@ static void loox_irda_transceiver_mode(struct device *dev, int mode)
 	unsigned long flags;
 
 	local_irq_save(flags);
-/*
-	if (mode & IR_FIRMODE)
-		SET_LOOX720_GPIO_N(IR_ON, 1);
-	else
-		SET_LOOX720_GPIO_N(IR_ON, 0);
-*/
-	if (mode & IR_OFF)
-		gpio_set_value(GPIO_NR_LOOX720_IR_ON_N, 1);
-	else
-		gpio_set_value(GPIO_NR_LOOX720_IR_ON_N, 0);
+
+	gpio_set_value(GPIO_NR_LOOX720_IR_ON_N, mode & IR_OFF);
 
 	local_irq_restore(flags);
 }
@@ -239,92 +231,6 @@ static struct pxaficp_platform_data loox_ficp_info = {
 	.shutdown = loox_irda_shutdown,
 };
 
-/* Uncomment the following line to get serial console via SIR work from
- * the very early booting stage. This is not useful for end-user.
- */
-/* #define EARLY_SIR_CONSOLE */
-/*
-#define IR_TRANSCEIVER_ON \
-	SET_LOOX720_GPIO_N(IR_ON, 1)
-
-#define IR_TRANSCEIVER_OFF \
-	SET_LOOX720_GPIO_N(IR_ON, 0)
-
-static void loox_irda_configure(int state)
-{
-	// Switch STUART RX/TX pins to SIR
-	pxa_gpio_mode(GPIO_NR_LOOX720_STD_RXD_MD);
-	pxa_gpio_mode(GPIO_NR_LOOX720_STD_TXD_MD);
-
-	// make sure FIR ICP is off
-	ICCR0 = 0;
-
-	switch (state) {
-
-	case PXA_UART_CFG_POST_STARTUP:
-		// configure STUART for SIR
-		STISR = STISR_XMODE | STISR_RCVEIR | STISR_RXPL;
-		IR_TRANSCEIVER_ON;
-		break;
-
-	case PXA_UART_CFG_PRE_SHUTDOWN:
-		STISR = 0;
-		IR_TRANSCEIVER_OFF;
-		break;
-	}
-}
-
-static void loox_irda_set_txrx(int txrx)
-{
-	unsigned old_stisr = STISR;
-	unsigned new_stisr = old_stisr;
-
-	if (txrx & PXA_SERIAL_TX) {
-		// Ignore RX if TX is set
-		txrx &= PXA_SERIAL_TX;
-		new_stisr |= STISR_XMITIR;
-	} else
-		new_stisr &= ~STISR_XMITIR;
-
-	if (txrx & PXA_SERIAL_RX)
-		new_stisr |= STISR_RCVEIR;
-	else
-		new_stisr &= ~STISR_RCVEIR;
-
-	if (new_stisr != old_stisr) {
-		while (!(STLSR & LSR_TEMT))
-			;
-		IR_TRANSCEIVER_OFF;
-		STISR = new_stisr;
-		IR_TRANSCEIVER_ON;
-	}
-}
-
-static int loox_irda_get_txrx (void)
-{
-	return ((STISR & STISR_XMITIR) ? PXA_SERIAL_TX : 0) |
-	       ((STISR & STISR_RCVEIR) ? PXA_SERIAL_RX : 0);
-}
-
-static struct platform_pxa_serial_funcs loox_pxa_irda_funcs = {
-	.configure = loox_irda_configure,
-	.set_txrx  = loox_irda_set_txrx,
-	.get_txrx  = loox_irda_get_txrx,
-};
-
-
-// Initialization code
-static void __init loox_map_io(void)
-{
-	pxa_map_io();
-	pxa_set_stuart_info(&loox_pxa_irda_funcs);
-#ifdef EARLY_SIR_CONSOLE
-	loox_irda_configure(NULL, 1);
-	loox_irda_set_txrx(NULL, PXA_SERIAL_TX);
-#endif
-}
-*/
-
 /*--------------------------------------------------------------------------------*/
 
 /*
@@ -336,26 +242,8 @@ static void __init loox_map_io(void)
 
 #ifdef CONFIG_LOOX720_BT
 
-#if 0
-static struct loox720_bt_funcs bt_funcs;
-
-static void
-loox720_bt_configure( int state )
-{
-        if (bt_funcs.configure != NULL)
-                bt_funcs.configure( state );
-}
-
-static struct platform_pxa_serial_funcs loox720_pxa_bt_funcs = {
-        .configure = loox720_bt_configure,
-};
-#endif
 static struct platform_device loox720_bt = {
         .name = "loox720-bt",
-//        .id = -1,
-//        .dev = {
-//                .platform_data = &bt_funcs,
-//        },
 };
 
 #endif
@@ -364,11 +252,6 @@ static struct platform_device loox720_bt = {
 
 /* PXA2xx Keys */
 
-/*
-static struct gpio_keys_button loox720_button_table[] = {
-	{ KEY_POWER, GPIO_NR_LOOX720_KEY_ON, 1 },
-};
-*/
 static struct gpio_keys_button loox720_button_table[] = {
 	[0] = {
 		.desc	= "wakeup",
@@ -398,8 +281,6 @@ static struct platform_device loox720_pxa_keys = {
  * SPI
  */
  
-
-
 /* borrowed from lubbock.c */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.clock_enable = CKEN_SSP1,
@@ -425,75 +306,12 @@ static struct platform_device loox720_ts = {
 	.name = "loox720-ts",
 };
 
-#if 0
-/*--------------------------------------------------------------------------------*/
-
-/*
- * Touchscreen
- */
-
-/* borrowed from poodle.c */
-
-static struct resource loox720_ts_resources[] = {
-        [0] = {
-                .start          = IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-                .end            = IRQ_GPIO(GPIO_NR_LOOX720_TOUCHPANEL_IRQ_N),
-                .flags          = IORESOURCE_IRQ,
-        },
-};
-
-static unsigned long loox720_get_hsync_invperiod(void)
-{
-        return 0;
-}
-
-static void loox720_null_hsync(void)
-{
-}
-
-static struct corgits_machinfo  loox720_ts_machinfo = {
-        .get_hsync_invperiod    = loox720_get_hsync_invperiod,
-        .put_hsync              = loox720_null_hsync,
-        .wait_hsync             = loox720_null_hsync,
-};
-
-static struct platform_device loox720_ts_device = {
-        .name           = "corgi-ts",
-        .dev            = {
-                .platform_data  = &loox720_ts_machinfo,
-        },
-        .id             = -1,
-        .num_resources  = ARRAY_SIZE(loox720_ts_resources),
-        .resource       = loox720_ts_resources,
-};
-
-/*
- * Loox SSP Device
- */
-
-struct platform_device loox720_ssp_device = {
-        .name           = "corgi-ssp",
-        .id             = -1,
-};
-
-struct corgissp_machinfo loox720_ssp_machinfo = {
-        .port           = 1,
-        .cs_lcdcon      = -1,
-        .cs_ads7846     = -1,
-        .cs_max1111     = -1,
-        .clk_lcdcon     = 32,
-        .clk_ads7846    = 32,
-        .clk_max1111    = 32,
-};
-#endif
-
 /*--------------------------------------------------------------------------------*/
 
 /*
  * Backlight
  */
 
-#if 0
 #define LOOX720_MAX_INTENSITY 0xc8
 #define LOOX720_DEFAULT_INTENSITY (LOOX720_MAX_INTENSITY / 4)
 
@@ -514,20 +332,20 @@ static void loox720_set_bl_intensity(int intensity)
 	}
 }
 
-static struct corgibl_machinfo loox720_bl_machinfo = {
-        .default_intensity = LOOX720_DEFAULT_INTENSITY,
-        .limit_mask = 0xff,
-        .max_intensity = LOOX720_MAX_INTENSITY,
-        .set_bl_intensity = loox720_set_bl_intensity,
+static struct generic_bl_info loox720_bl_machinfo = {
+	.name			= "loox720-bl",
+        .default_intensity 	= LOOX720_DEFAULT_INTENSITY,
+        .limit_mask 		= 0xff,
+        .max_intensity 		= LOOX720_MAX_INTENSITY,
+        .set_bl_intensity 	= loox720_set_bl_intensity,
 };
 
 struct platform_device loox720_bl = {
-        .name = "corgi-bl",
+        .name = "generic-bl",
         .dev = {
     		.platform_data = &loox720_bl_machinfo,
 	},
 };
-#endif
 
 /*--------------------------------------------------------------------------------*/
 
@@ -713,7 +531,6 @@ static struct pxamci_platform_data loox7xx_mci_info = {
  * Loox 720
  */
 
- 
 static struct platform_device *devices[] __initdata = {
 	&loox720_core,
         &pxa_ssp,
@@ -730,19 +547,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_LOOX720_FLASH
 	&loox7xx_flash,
 #endif
-//	&loox720_ts_device,
-//	&loox720_ssp_device,
-#if 0
-	&pxa_spi_nssp,
 	&loox720_bl,
 	&loox720_battery,
-#endif
 };
 
 #ifdef CONFIG_LOOX720_ADS7846
 static struct pxa2xx_spi_chip loox720_spi_ads7846_hw = {
 	.tx_threshold		= 8,
-	.rx_threshold		= 8,
+	.rx_threshold		= 4,
 	//.cs_control		= ads7846_cs,
 	.timeout		= 1000,
 	.enable_loopback	= 0,
