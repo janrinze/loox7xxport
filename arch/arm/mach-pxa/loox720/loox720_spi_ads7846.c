@@ -53,15 +53,32 @@ static loox720_ads7846_spi_message ads_cmds[] = {
 
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 
-static loox720_ads7846_spi_message ads_hwmon_cmds[] = {
+static loox720_ads7846_spi_message ads_hwmon_temp0[] = {
 	{ .cmd = READ_12BIT_SER(temp0) << 7, }, // read temp0
-	{ .cmd = READ_12BIT_SER(vbatt) << 7, }, // read vbatt
-	{ .cmd = READ_12BIT_SER(vaux) << 7, }, // read vaux
-	{ .cmd = READ_12BIT_SER(temp1) << 7, }, // read temp1
 	{ .cmd = READ_X(1) << 7, }, // fix penirq
 	{ .cmd = READ_X(0) << 7, }, // fix penirq
 	{ .cmd = PWRDOWN << 7, }, // power down
-	{ .cmd = 0x0000, }, // nop
+};
+
+static loox720_ads7846_spi_message ads_hwmon_vbatt[] = {
+	{ .cmd = READ_12BIT_SER(vbatt) << 7, }, // read temp0
+	{ .cmd = READ_X(1) << 7, }, // fix penirq
+	{ .cmd = READ_X(0) << 7, }, // fix penirq
+	{ .cmd = PWRDOWN << 7, }, // power down
+};
+
+static loox720_ads7846_spi_message ads_hwmon_vaux[] = {
+	{ .cmd = READ_12BIT_SER(vaux) << 7, }, // read temp0	
+	{ .cmd = READ_X(1) << 7, }, // fix penirq
+	{ .cmd = READ_X(0) << 7, }, // fix penirq
+	{ .cmd = PWRDOWN << 7, }, // power down
+};
+
+static loox720_ads7846_spi_message ads_hwmon_temp1[] = {
+	{ .cmd = READ_12BIT_SER(temp1) << 7, }, // read temp0	
+	{ .cmd = READ_X(1) << 7, }, // fix penirq
+	{ .cmd = READ_X(0) << 7, }, // fix penirq
+	{ .cmd = PWRDOWN << 7, }, // power down
 };
 
 #endif
@@ -97,7 +114,7 @@ int SPI_read_write_block(loox720_ads7846_device_info * dev, loox720_ads7846_spi_
 	hwmon interface
    ========================================================== */
 
-static void SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads, loox720_ads7846_spi_message * msg, int num_commands)
+static unsigned int SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads, loox720_ads7846_spi_message * msg, int num_commands)
 {
 	int i;
 	struct spi_transfer *x = &ads->hwmon_xfer;
@@ -117,10 +134,7 @@ static void SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads, loox72
 
 	spi_sync(ads->spi,m);
 	
-	ads->hwmon_data.temp0  = convert_hwmon_data_12( ads, 0);
-	ads->hwmon_data.vbatt  = convert_hwmon_data_12( ads, 1 );
-	ads->hwmon_data.vaux = convert_hwmon_data_12( ads, 2 );
-	ads->hwmon_data.temp1 = convert_hwmon_data_12( ads, 3 );
+	return convert_hwmon_data_12( ads, 0);
 }
 
 #define SHOW(name, var, adjust) static ssize_t \
@@ -129,8 +143,7 @@ name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 	ssize_t v; \
 	loox720_ads7846_device_info *ads = dev_get_drvdata(dev); \
 	\
-	SPI_hwmon_read_write_block( ads , ads_hwmon_cmds , ARRAY_SIZE(ads_hwmon_cmds)); \
-	v = ads->hwmon_data.var; \
+	v = SPI_hwmon_read_write_block( ads , ads_hwmon_ ## var , ARRAY_SIZE(ads_hwmon_ ## var)); \
 	\
 	if (v < 0) \
 		return v; \
@@ -375,8 +388,8 @@ irqreturn_t pendown_interrupt(int irq, void *data)
 			schedule_work(&ads->work);
 		}
 	}
-   
-    return IRQ_HANDLED;
+	
+	return IRQ_HANDLED;
 }
 
 /* ==========================================================

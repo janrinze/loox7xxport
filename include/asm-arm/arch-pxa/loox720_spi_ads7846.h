@@ -55,15 +55,6 @@ typedef struct loox720_ads7846_spi_message
 	unsigned int		data;
 } loox720_ads7846_spi_message;
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-typedef struct loox720_ads7846_hwmon_data {
-	volatile unsigned int	temp0;
-	volatile unsigned int	vaux;
-	volatile unsigned int	vbatt;
-	volatile unsigned int	temp1;
-} loox720_ads7846_hwmon_data;
-#endif
-
 typedef struct loox720_ads7846_device_info {
 	unsigned int 			irq,pen;
 	volatile unsigned int 		x, y, rt;
@@ -84,12 +75,11 @@ typedef struct loox720_ads7846_device_info {
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	struct attribute_group		*attr_group;
 	struct device			*hwmon;
-	loox720_ads7846_hwmon_data	hwmon_data;
 	u16				vref_mv;
 	struct spi_transfer		hwmon_xfer;
 	struct spi_message		hwmon_msg;
-	unsigned short 			hwmon_sendblock[16];
-	unsigned short			hwmon_receiveblock[16];
+	unsigned short 			hwmon_sendblock[8];
+	unsigned short			hwmon_receiveblock[8];
 #endif
 } loox720_ads7846_device_info;
 
