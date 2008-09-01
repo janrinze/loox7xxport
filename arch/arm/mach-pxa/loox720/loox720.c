@@ -355,33 +355,20 @@ struct platform_device loox720_bl = {
 
 static struct platform_device loox720_buttons = {
 	.name = "loox720-buttons",
+	.id		= -1,
 };
 
 /*--------------------------------------------------------------------------------*/
 
 /*
- * Battery
+ * Battery charging
  */
 
 static struct platform_device loox720_battery = {
 	.name = "loox720-battery",
-};
-
-/*--------------------------------------------------------------------------------*/
-
-/*
- * Core
- */
-
-static struct loox720_core_funcs core_funcs;
-
-static struct platform_device loox720_core = {
-	.name = "loox720-core",
 	.id		= -1,
-	.dev = {
-		.platform_data = &core_funcs,
-	},
 };
+
 /*--------------------------------------------------------------------------------*/
 
 /*
@@ -469,6 +456,17 @@ extern struct platform_device loox7xx_flash;
  * MMC/SD
  */
 
+static struct platform_device loox720_pm = {
+	.name = "loox720-pm",
+	.id		= -1,
+};
+
+/*--------------------------------------------------------------------------------*/
+
+/*
+ * MMC/SD
+ */
+
 static int loox7xx_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
@@ -531,7 +529,7 @@ static struct pxamci_platform_data loox7xx_mci_info = {
  */
 
 static struct platform_device *devices[] __initdata = {
-	&loox720_core,
+	&loox720_battery,
         &pxa_ssp,
 #ifdef CONFIG_LOOX720_TS
 	&loox720_ts,
@@ -547,7 +545,7 @@ static struct platform_device *devices[] __initdata = {
 	&loox7xx_flash,
 #endif
 	&loox720_bl,
-	&loox720_battery,
+	&loox720_pm,
 };
 
 #ifdef CONFIG_LOOX720_ADS7846
