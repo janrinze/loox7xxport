@@ -3,6 +3,11 @@ menu "Fujitsu-Siemens PocketLoox 720 configuration"
 
 config LOOX720_LCD
     bool "FSC Loox 720 LCD"
+    select FB
+    select FB_BACKLIGHT
+    select BACKLIGHT_LOOX720
+    select LCD_CLASS_DEVICE
+    select LCD_LOOX720
     depends on MACH_LOOX720
     help
         This driver provides support for changing power and brightness
@@ -46,6 +51,17 @@ config LOOX720_ADS7846_AUTOCAL
 	Just draw a rectangle along all the four edges and the touchscreen
 	will be calibrated. At the moment useful only with Android.
 
+config LOOX720_BATTERY
+    bool "FSC Loox 720 Battery support (say Y!)"
+    depends on MACH_LOOX720
+    default y
+    select POWER_SUPPLY
+    select BATTERY_LOOX720
+    help
+        FSC Loox 718/720 power/battery support. You really should say Y here,
+        to get charging on empty battery, AC/USB charging capabilities etc
+
+
 config LOOX720_BUTTONS
     bool "FSC Loox 720 Buttons"
     depends on MACH_LOOX720
@@ -76,6 +92,7 @@ config LOOX720_PCMCIA
 
 config LOOX720_FLASH
     tristate "FSC Loox 720 Flash ROM"
+    select MTD
     select MTD_CFI
     select MTD_PARTITIONS
     select MTD_CFI_INTELEXT

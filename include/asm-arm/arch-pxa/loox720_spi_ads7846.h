@@ -75,6 +75,7 @@ typedef struct loox720_ads7846_device_info {
 	unsigned short 			sendblock[16];
 	unsigned short			receiveblock[16];
 	unsigned int			report_button;
+	unsigned int			disabled;
 	struct hrtimer			timer;
 	struct work_struct		work;	
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)

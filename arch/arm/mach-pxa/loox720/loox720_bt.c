@@ -25,7 +25,13 @@
 
 #define DRV_NAME              "loox720-bt"
 
-static int state;
+enum loox_bt_state {
+BT_OFF,
+BT_ON,
+BT_PRE_SUSPEND_ON,
+};
+
+static enum loox_bt_state state;
 
 /* Bluetooth control */
 static void loox720_bt_enable(int on)
@@ -56,21 +62,21 @@ static void loox720_bt_enable(int on)
 			printk( KERN_NOTICE "loox720_bt.c: Firmware timeout!\n");
 		}
 
-		state = 1;
+		state = BT_ON;
 	}
 	else {
 		loox720_egpio_set_bit( LOOX720_CPLD_BLUETOOTH_RADIO, 0 );
 		loox720_egpio_set_bit( LOOX720_CPLD_BLUETOOTH_POWER, 0 );
 		loox720_disable_led( LOOX720_LED_LEFT, LOOX720_LED_COLOR_A );
 		mdelay(1);
-
-		state = 0;
+		if (state != BT_PRE_SUSPEND_ON)
+		  state = BT_OFF;
 	}
 }
 
 static ssize_t loox720_bt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", state);
+	return snprintf(buf, PAGE_SIZE, "%d\n", !(state == BT_OFF));
 }
 
 static ssize_t loox720_bt_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -108,6 +114,27 @@ static int loox720_bt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int loox720_bt_suspend(struct platform_device *pdev, pm_message_t mstate)
+{
+	if (state == BT_ON) {
+	  state = BT_PRE_SUSPEND_ON;
+	  loox720_bt_enable(0);
+	}
+	return 0;
+}
+
+static int loox720_bt_resume(struct platform_device *pdev, pm_message_t mstate)
+{
+	if (state == BT_PRE_SUSPEND_ON)
+	  loox720_bt_enable(1);
+	return 0;
+}
+#else
+#define loox720_bt_suspend	NULL
+#define loox720_bt_resume	NULL
+#endif
+
 
 static struct platform_driver loox720_bt_driver = {
 	.driver		= {
@@ -115,6 +142,8 @@ static struct platform_driver loox720_bt_driver = {
 	},
 	.probe		= loox720_bt_probe,
 	.remove		= loox720_bt_remove,
+	.suspend	= loox720_bt_suspend,
+	.resume		= loox720_bt_resume,
 };
 
 

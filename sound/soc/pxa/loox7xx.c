@@ -44,6 +44,8 @@
 #include <linux/irq.h>
 #include <linux/workqueue.h>
 
+#include"loox7xx.h"
+
 static int loox_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params);
 static int loox_wm8750_init(struct snd_soc_codec *codec);
@@ -65,15 +67,25 @@ static struct snd_soc_dai_link loox_dai = {
 	.ops = &loox_ops,
 };
 
+static void loox_wm8750_hp_switch();
+
+static int loox_wm8780_resume(struct platform_device *pdev) {
+  disable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
+  loox_wm8750_hp_switch();
+  return 0;
+}
+
 static struct snd_soc_machine loox = {
 	.name = "Loox Audio",
 	.dai_link = &loox_dai,
 	.num_links = 1,
+	.resume_post = loox_wm8780_resume,
 };
 
 static struct wm8750_setup_data loox_wm8750_setup = {
 	.i2c_address = 0x1a,
 };
+
 
 static struct snd_soc_device loox_snd_devdata = {
 	.machine = &loox,
@@ -83,8 +95,6 @@ static struct snd_soc_device loox_snd_devdata = {
 };
 
 static struct platform_device *loox_snd_device;
-
-
 
 /* note that with this switching code ROUT2/LOUT2 (the VoIP speaker) is always deactivated */
 
@@ -154,21 +164,17 @@ static int loox_hw_params(struct snd_pcm_substream *substream,
 
 static void loox_wm8750_hp_switch() 
 {
-	int reg;
 	int hp_in;
 	if (loox_snd_devdata.dev != NULL) {
 	    hp_in = gpio_get_value(GPIO_NR_LOOX720_HEADPHONE_DET);
 	    if (hp_in) {
 		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"OUT3",0);
 		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"LOUT1",1);
-		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
-		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffe1) | 0x0060);
 	    } else {
 		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"OUT3",1);
 		snd_soc_dapm_set_endpoint(loox_snd_devdata.codec,"LOUT1",0);
-		reg = loox_snd_devdata.codec->read(loox_snd_devdata.codec, WM8750_PWR2);
-		loox_snd_devdata.codec->write(loox_snd_devdata.codec, WM8750_PWR2, (reg & 0xffa2) | 0x0022); 
 	    }
+	    snd_soc_dapm_sync_endpoints(loox_snd_devdata.codec);
 	    enable_irq(IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET));
 	}
 }
@@ -181,8 +187,73 @@ static int loox_wm8750_hp_switch_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* several controls aren't of interest on the Loox, hide those from mixer apps,
+   if necessary set certain values
+*/
+static void loox_wm8750_set_and_hide_controls(struct snd_card *card) 
+{
+	unsigned int i;
+	struct snd_kcontrol *ctl;
+	struct snd_kcontrol_volatile *vd;
+	struct snd_ctl_elem_value val;
+	struct snd_ctl_elem_id id;
+	unsigned int index_offset;
+
+	for (i = 0; i < ARRAY_SIZE(loox7xx_hidden_controls); i++) {
+          memset(&id, 0, sizeof(id));
+          strcpy(id.name, loox7xx_hidden_controls[i].name);
+          id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+/* find and deactivate control */
+	  down_write(&card->controls_rwsem);
+	  ctl = snd_ctl_find_id(card, &id);
+	  index_offset = snd_ctl_get_ioff(ctl, &ctl->id);
+	  vd = &ctl->vd[index_offset];
+	  vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+	  up_write(&card->controls_rwsem);
+	  snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &id);
+/* set deactivated controls which need an init value != default */
+	  memset(&val, 0, sizeof(val));
+	  switch(loox7xx_hidden_controls[i].type){
+	  case LOOX_DAPM_ENUM:
+	    val.value.enumerated.item[0] = loox7xx_hidden_controls[i].val;
+	    ctl->put(ctl,&val);
+	  break;
+	  case LOOX_DAPM_VOLSW:
+	    val.value.integer.value[0] = loox7xx_hidden_controls[i].val;
+	    ctl->put(ctl,&val);
+	  break;
+	  default:
+	  break;
+	  }
+        }
+}
+
+/* alsalib mixer layer is kinda picky on name of controls if it comes
+   to deciding wether its a playback or a capture control. 
+   Let's help it a bit!  (-;
+*/
+static void loox_wm8750_rename_controls(struct snd_card *card) 
+{
+	unsigned int i;
+        struct snd_ctl_elem_id old_id, new_id;
+
+	for (i = 0; i < ARRAY_SIZE(loox7xx_renamed_controls); i+=2) {
+          memset(&old_id, 0, sizeof(old_id));
+	  memset(&new_id, 0, sizeof(new_id));
+          strcpy(old_id.name, loox7xx_renamed_controls[i]);
+          old_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+          strcpy(new_id.name, loox7xx_renamed_controls[i+1]);
+          new_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	  snd_ctl_rename_id(card, &old_id, &new_id);
+        }
+}
+
+/* customize controls and set up headphone detection */
 static int loox_wm8750_init(struct snd_soc_codec *codec)
 {
+	loox_wm8750_set_and_hide_controls(codec->card);
+	loox_wm8750_rename_controls(codec->card);
+
 	hp_switch_irq = IRQ_GPIO(GPIO_NR_LOOX720_HEADPHONE_DET);
 	if (request_irq( hp_switch_irq, loox_wm8750_hp_switch_isr,IRQF_DISABLED|IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, "Headphone detect", NULL) != 0) {
 		 printk( KERN_ERR "Unable to aquire headphone detect IRQ.\n" );

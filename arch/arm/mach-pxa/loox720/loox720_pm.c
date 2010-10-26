@@ -183,6 +183,11 @@ asm( "mrc\tp15, 0, %0, c3, c0, 0" : "=r" (tmp) );
 	}
 
 	PSPR = csum;
+/* clear the Fastbus bit as for some reason letting it set leads to crash on resume */
+__asm__ volatile ("mrc p14, 0, r3, c6, c0, 0\n"
+                  "bic	r3, r3, #8\n"
+                  "mcr p14, 0, r3, c6, c0, 0\n"
+                 :::"r3");
 }
 
 extern void pxa27x_cpu_pm_restore(unsigned long *sleep_save);

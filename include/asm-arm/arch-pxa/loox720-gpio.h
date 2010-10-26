@@ -61,7 +61,7 @@
 #define GPIO_NR_LOOX720_MMC_DETECT_N		52 // IN - sure - low when an SD card is inserted
 
 #define GPIO_NR_LOOX720_MMC_RO			74 // IN - sure - high when a write-protected SD card is inserted
-#define GPIO_NR_LOOX720_EARPHONE_DET_N		75 // UNKNOWN OUT - driving low fades the screen to white
+#define GPIO_NR_LOOX720_EARPHONE_DET_N		75 // UNKNOWN OUT - driving low fades the screen to white (LCD reset?)
 
 #define GPIO_NR_LOOX720_IR_ON_N			81 // UNKNOWN OUT
 
@@ -72,8 +72,8 @@
 #define GPIO_NR_LOOX720_BATT_OFF		95 // UNKNOWN OUT
 #define GPIO_NR_LOOX720_USB_CHARGE_RATE		96 // UNKNOWN IN - seems like related to the sound system
 
-#define GPIO_NR_LOOX720_CPLD_RESET_N		106 // OUT - probably - low to reset the CPLD
-#define GPIO_NR_LOOX720_CHARGE_EN_N		107 // OUT - sure - high to disable battery charging
+#define GPIO_NR_LOOX720_CPLD_RESET_N		106 // OUT - sure - low to reset the CPLD
+#define GPIO_NR_LOOX720_CHARGE_EN_N		107 // OUT - sure - low to enable battery charging
 
 #define GPIO_NR_LOOX720_UNK_119			119 // UNKNOWN IN
 #define GPIO_NR_LOOX720_HEADPHONE_DET		120 // IN - sure - headphone detect (high when headphones are connected)

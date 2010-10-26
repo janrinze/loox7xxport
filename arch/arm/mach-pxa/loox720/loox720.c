@@ -22,7 +22,6 @@
 #include <linux/gpio.h>
 #include <linux/serial.h>
 #include <linux/gpio_keys.h>
-#include <linux/backlight.h>
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
@@ -191,8 +190,8 @@
 	GPIO94_GPIO,
 	MFP_CFG_OUT(GPIO95, AF0, DRIVE_LOW),	// setup but function unknown
 	GPIO96_GPIO,				// setup but function unknown
-	MFP_CFG_OUT(GPIO106, AF0, DRIVE_HIGH),	// setup but function unknown
-	MFP_CFG_OUT(GPIO107, AF0, DRIVE_LOW),
+	MFP_CFG_OUT(GPIO106, AF0, DRIVE_HIGH),
+	MFP_CFG_OUT(GPIO107, AF0, DRIVE_HIGH),
 	GPIO119_GPIO,				// setup but function unknown
 	GPIO120_GPIO,
  };
@@ -306,48 +305,6 @@ static struct platform_device loox720_ts = {
 	.name = "loox720-ts",
 };
 
-/*--------------------------------------------------------------------------------*/
-
-/*
- * Backlight
- */
-
-#define LOOX720_MAX_INTENSITY 0xc8
-#define LOOX720_DEFAULT_INTENSITY (LOOX720_MAX_INTENSITY / 4)
-
-static void loox720_set_bl_intensity(int intensity)
-{
-	if (intensity < 7) intensity = 0;
-
-	PWM_CTRL0 = 1;
-	PWM_PWDUTY0 = intensity;
-	PWM_PERVAL0 = LOOX720_MAX_INTENSITY;
-
-	if (intensity > 0) {
-		loox720_egpio_set_bit(LOOX720_CPLD_BACKLIGHT_BIT, 1);
-		pxa_set_cken(CKEN_PWM0, 1);
-	} else {
-		loox720_egpio_set_bit(LOOX720_CPLD_BACKLIGHT_BIT, 0);
-                pxa_set_cken(CKEN_PWM0, 0);
-	}
-}
-
-static struct generic_bl_info loox720_bl_machinfo = {
-	.name			= "loox720-bl",
-        .default_intensity 	= LOOX720_DEFAULT_INTENSITY,
-        .limit_mask 		= 0xff,
-        .max_intensity 		= LOOX720_MAX_INTENSITY,
-        .set_bl_intensity 	= loox720_set_bl_intensity,
-};
-
-struct platform_device loox720_bl = {
-        .name = "generic-bl",
-        .dev = {
-    		.platform_data = &loox720_bl_machinfo,
-	},
-};
-
-/*--------------------------------------------------------------------------------*/
 
 /*
  * Buttons
@@ -544,7 +501,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_LOOX720_FLASH
 	&loox7xx_flash,
 #endif
-	&loox720_bl,
 	&loox720_pm,
 };
 

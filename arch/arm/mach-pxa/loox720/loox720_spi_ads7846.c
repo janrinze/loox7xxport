@@ -14,7 +14,6 @@
 
 #include <linux/spi/spi.h>
 #include <linux/input.h>
-#include <linux/hwmon.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/loox720.h>
@@ -24,6 +23,7 @@
 
 #define TS_POLL_DELAY(x)	(((x) - 1) * 1000000) // sample rate = +/- 5Hz with 200kHz spi bus
 
+static loox720_ads7846_device_info *loox720_batt_monitor_device = NULL;
 // =======================================================
 // hardcoded values for testing
 // we should be using the pdev struct to retrieve this info..
@@ -51,21 +51,9 @@ static loox720_ads7846_spi_message ads_cmds[] = {
 	{ .cmd = PWRDOWN << 7, }, // nop
 };
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-
-static loox720_ads7846_spi_message ads_hwmon_temp0[] = {
-	{ .cmd = READ_12BIT_SER(temp0) << 7, }, // read temp0
-	{ .cmd = READ_X(1) << 7, }, // fix penirq
-	{ .cmd = READ_X(0) << 7, }, // fix penirq
-	{ .cmd = PWRDOWN << 7, }, // power down
-};
-
-static loox720_ads7846_spi_message ads_hwmon_vbatt[] = {
-	{ .cmd = READ_12BIT_SER(vbatt) << 7, }, // read temp0
-	{ .cmd = READ_X(1) << 7, }, // fix penirq
-	{ .cmd = READ_X(0) << 7, }, // fix penirq
-	{ .cmd = PWRDOWN << 7, }, // power down
-};
+/* ==========================================================
+    ADS command sequence for retrieving battery measurements
+   ========================================================== */
 
 static loox720_ads7846_spi_message ads_hwmon_vaux[] = {
 	{ .cmd = READ_12BIT_SER(vaux) << 7, }, // read temp0	
@@ -74,14 +62,6 @@ static loox720_ads7846_spi_message ads_hwmon_vaux[] = {
 	{ .cmd = PWRDOWN << 7, }, // power down
 };
 
-static loox720_ads7846_spi_message ads_hwmon_temp1[] = {
-	{ .cmd = READ_12BIT_SER(temp1) << 7, }, // read temp0	
-	{ .cmd = READ_X(1) << 7, }, // fix penirq
-	{ .cmd = READ_X(0) << 7, }, // fix penirq
-	{ .cmd = PWRDOWN << 7, }, // power down
-};
-
-#endif
 
 /* ==========================================================
 	SPI block read/write interface
@@ -109,10 +89,12 @@ int SPI_read_write_block(loox720_ads7846_device_info * dev, loox720_ads7846_spi_
 	return spi_async(dev->spi,m);
 }
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-/* ==========================================================
-	hwmon interface
-   ========================================================== */
+
+/* ===================================================================
+      reading vAUX voltage of the ADS7846, which depending on 
+      the CPLDs setting is related to voltage/current/temp
+		      of the Loox battery
+   =================================================================== */
 
 static unsigned int SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads, loox720_ads7846_spi_message * msg, int num_commands)
 {
@@ -130,27 +112,14 @@ static unsigned int SPI_hwmon_read_write_block(loox720_ads7846_device_info * ads
 	x->len = num_commands*sizeof(ads->hwmon_sendblock[0]); // 8 messages
 	spi_message_add_tail(x, m);
 	
-	printk(KERN_DEBUG "loox720_spi_ads7846: Reading hwmon data\n");
-
 	spi_sync(ads->spi,m);
 	
 	return convert_hwmon_data_12( ads, 0);
 }
 
-#define SHOW(name, var, adjust) static ssize_t \
-name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
-{ \
-	ssize_t v; \
-	loox720_ads7846_device_info *ads = dev_get_drvdata(dev); \
-	\
-	v = SPI_hwmon_read_write_block( ads , ads_hwmon_ ## var , ARRAY_SIZE(ads_hwmon_ ## var)); \
-	\
-	if (v < 0) \
-		return v; \
-	return sprintf(buf, "%u\n", adjust(ads, v)); \
-} \
-static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
-
+/* ==================================================================
+	    CPLD setting for the requested voltage on vAUX
+   ================================================================== */
 static void loox720_ads7846_set_hwmon_port(unsigned int cpld)
 {
 	loox720_egpio_set_bit(LOOX720_CPLD_VAUX_CTL1, cpld & 1);
@@ -158,123 +127,48 @@ static void loox720_ads7846_set_hwmon_port(unsigned int cpld)
 	loox720_egpio_set_bit(LOOX720_CPLD_VAUX_CTL3, cpld & 4);
 }
 
-#ifdef CONFIG_MACH_LOOX720
+/* ==================================================================
+    generic LOOX battery monitoring function using SPI interfaces
+   ================================================================== */
 
-#define LOOX720_SHOW(name, var, adjust, cpld) static ssize_t \
-name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
-{ \
-	ssize_t v; \
-	loox720_ads7846_device_info *ads = dev_get_drvdata(dev); \
-	\
-	loox720_ads7846_set_hwmon_port(cpld);\
-	v = SPI_hwmon_read_write_block( ads , ads_hwmon_ ## var , ARRAY_SIZE(ads_hwmon_ ## var)); \
-	\
-	if (v < 0) \
-		return v; \
-	return sprintf(buf, "%u\n", adjust(ads, v)); \
-} \
-static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
-
-#endif
-
-/* Sysfs conventions report temperatures in millidegrees Celcius.
- * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
- * accuracy scheme without calibration data.  For now we won't try either;
- * userspace sees raw sensor values, and must scale/calibrate appropriately.
- */
-static inline unsigned null_adjust(loox720_ads7846_device_info *ads, ssize_t v)
-{
+static int loox720_ads7846_battery_reading(int cpld) {
+	ssize_t v;
+	if (loox720_batt_monitor_device == NULL)
+	  return -1;
+	loox720_ads7846_set_hwmon_port(cpld);
+	v = SPI_hwmon_read_write_block(loox720_batt_monitor_device, ads_hwmon_vaux, ARRAY_SIZE(ads_hwmon_vaux));
+	if (v < 0) 
+		return v;
+/* rescale measured vAUX voltage in relation to vREF...note that this is
+   basically copied from the previous version. We still don't know the actual
+   vREF value on the Loox... */
+	v*= loox720_batt_monitor_device->vref_mv;
+	v = v >> 12;
 	return v;
 }
-SHOW(temp0, temp0, null_adjust)		/* temp1_input */
-SHOW(temp1, temp1, null_adjust)		/* temp2_input */
 
-/* sysfs conventions report voltages in millivolts.  We can convert voltages
- * if we know vREF.  userspace may need to scale vAUX to match the board's
- * external resistors; we assume that vBATT only uses the internal ones.
- */
-static inline unsigned vaux_adjust(loox720_ads7846_device_info *ads, ssize_t v)
+/* ==================================================================
+            battery monitoring access in kernel space, 
+  other modules can access the ADS measurements of the LOOX battery
+   ================================================================== */
+
+int loox720_ads7846_battery_voltage(void) 
 {
-	unsigned retval = v;
-
-	/* external resistors may scale vAUX into 0..vREF */
-	retval *= ads->vref_mv;
-	retval = retval >> 12;
-	return retval;
+    return loox720_ads7846_battery_reading(LOOX720_CPLD_VAUX_VBATT);
 }
-#ifndef CONFIG_MACH_LOOX720
-SHOW(in0_input, vaux, vaux_adjust)
-#else
-LOOX720_SHOW(loox720_vbatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_VBATT)
-LOOX720_SHOW(loox720_ibatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_IBATT)
-LOOX720_SHOW(loox720_tbatt, vaux, vaux_adjust, LOOX720_CPLD_VAUX_TBATT)
-LOOX720_SHOW(loox720_ext, vaux, vaux_adjust, LOOX720_CPLD_VAUX_UNK)
-#endif
+EXPORT_SYMBOL(loox720_ads7846_battery_voltage);
 
-static inline unsigned vbatt_adjust(loox720_ads7846_device_info *ads, ssize_t v)
+int loox720_ads7846_battery_current(void) 
 {
-	unsigned retval = vaux_adjust(ads, v);
-
-	retval *= 4;
-	return retval;
+    return loox720_ads7846_battery_reading(LOOX720_CPLD_VAUX_IBATT);
 }
-SHOW(in1_input, vbatt, vbatt_adjust)
+EXPORT_SYMBOL(loox720_ads7846_battery_current);
 
-static struct attribute *ads7846_attributes[] = {
-	&dev_attr_temp0.attr,
-	&dev_attr_temp1.attr,
-#ifndef CONFIG_MACH_LOOX720
-	&dev_attr_in0_input.attr,
-#else
-	&dev_attr_loox720_vbatt.attr,
-	&dev_attr_loox720_ibatt.attr,
-	&dev_attr_loox720_tbatt.attr,
-	&dev_attr_loox720_ext.attr,
-#endif
-	&dev_attr_in1_input.attr,
-	NULL,
-};
-
-static struct attribute_group ads7846_attr_group = {
-	.attrs = ads7846_attributes,
-};
-
-static int ads784x_hwmon_register(struct spi_device *spi, loox720_ads7846_device_info *ads)
+int loox720_ads7846_battery_temp(void) 
 {
-	struct device *hwmon;
-	int err;
-
-	if (!ads->vref_mv) {
-		dev_dbg(&spi->dev, "assuming 2.5V internal vREF\n");
-		ads->vref_mv = 2500;
-	}
-	
-	ads->attr_group = &ads7846_attr_group;
-
-	err = sysfs_create_group(&spi->dev.kobj, ads->attr_group);
-	if (err)
-		return err;
-
-	hwmon = hwmon_device_register(&spi->dev);
-	if (IS_ERR(hwmon)) {
-		sysfs_remove_group(&spi->dev.kobj, ads->attr_group);
-		return PTR_ERR(hwmon);
-	}
-
-	ads->hwmon = hwmon;
-	return 0;
+  return loox720_ads7846_battery_reading(LOOX720_CPLD_VAUX_TBATT);
 }
-
-static void ads784x_hwmon_unregister(struct spi_device *spi,
-				     loox720_ads7846_device_info *ads)
-{
-	if (ads->hwmon) {
-		sysfs_remove_group(&spi->dev.kobj, ads->attr_group);
-		hwmon_device_unregister(ads->hwmon);
-	}
-}
-
-#endif
+EXPORT_SYMBOL(loox720_ads7846_battery_temp);
 
 /* ==========================================================
 	input layer reporting interface
@@ -345,7 +239,7 @@ static void loox720_ads7846_callback(void *data)
 		ads->y=y;		
 	}
 	
-	if (!readpen(ads)) {
+	if (!readpen(ads) && !ads->disabled) {
 		hrtimer_start(&ads->timer, ktime_set(0, TS_POLL_DELAY(ads->sample_rate)),
 			      HRTIMER_MODE_REL);
 	} else {
@@ -460,6 +354,8 @@ static int __init loox720_ads7846_probe(struct spi_device *spi)
 
 	spi->bits_per_word = 15;
 	spi->mode = SPI_MODE_0;
+	// hm, we really don't have a clue....this should be verified/changed
+	ads->vref_mv = 2500;
 	
 	ads->xmin = 400;
 	ads->xmax = 3610;
@@ -512,9 +408,9 @@ static int __init loox720_ads7846_probe(struct spi_device *spi)
 		goto err_remove_input;
 		};
 	
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-	ads784x_hwmon_register(spi, ads);
-#endif
+	// first come first server however there should be only one ADS7846 device (-:
+	if (loox720_batt_monitor_device == NULL)
+	  loox720_batt_monitor_device = ads;
 
 	return 0;
 
@@ -528,11 +424,34 @@ err_no_mem:
 static int __devexit loox720_ads7846_remove(struct spi_device *spi)
 {
 	loox720_ads7846_device_info * dev_info = dev_get_drvdata(&spi->dev);
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
-	ads784x_hwmon_unregister(spi, dev_info);
-#endif
+
+	if (loox720_batt_monitor_device == dev_info)
+	    loox720_batt_monitor_device = NULL;
+
 	free_irq(dev_info->irq,dev_info);
 	if (dev_info->input) input_unregister_device(dev_info->input);
+	return 0;
+}
+
+static int loox720_ads7846_suspend(struct spi_device *spi, pm_message_t message)
+{
+
+	loox720_ads7846_device_info *ts = dev_get_drvdata(&spi->dev);
+
+	disable_irq(ts->irq);
+	ts->disabled = 1;
+
+	return 0;
+
+}
+
+static int loox720_ads7846_resume(struct spi_device *spi)
+{
+	loox720_ads7846_device_info *ts = dev_get_drvdata(&spi->dev);
+
+	ts->disabled = 0;
+	enable_irq(ts->irq);
+
 	return 0;
 }
 
@@ -544,8 +463,8 @@ static struct spi_driver loox720_ads7846_driver = {
 	},
 	.probe		= loox720_ads7846_probe,
 	.remove		= __devexit_p(loox720_ads7846_remove),
-	//.suspend	= loox720_ads7846_suspend,
-	//.resume	= loox720_ads7846_resume,
+	.suspend	= loox720_ads7846_suspend,
+	.resume		= loox720_ads7846_resume,
 };
 
 static int __init loox720_ads7846_init(void)

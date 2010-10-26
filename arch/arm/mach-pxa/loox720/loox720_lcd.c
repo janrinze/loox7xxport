@@ -26,8 +26,6 @@
 #include <linux/backlight.h>
 #include <linux/err.h>
 
-//#include <asm/arch/aximx3-init.h>
-//#include <asm/arch/aximx3-gpio.h>
 #include <asm/arch/loox720-gpio.h>
 #include <asm/arch/loox720-cpld.h>
 #include <linux/fb.h>
@@ -35,7 +33,6 @@
 #include "asm/arch/pxa-regs.h"
 #include "asm/arch/pxafb.h"
 #include <linux/platform_device.h>
-//#include <linux/corgi_bl.h>
 
 
 static struct pxafb_mode_info loox720_lcd_mode_info = {
@@ -52,34 +49,25 @@ static struct pxafb_mode_info loox720_lcd_mode_info = {
 	.sync			= 0,
 };
 
-static void loox720_backlight_power(int on)
-{
-	loox720_egpio_set_bit(LOOX720_CPLD_BACKLIGHT_BIT, on);
-}
-
-static void loox720_lcd_power(int on, struct fb_var_screeninfo *var)
-{
-	if(on) {
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT2, 1);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_CONSOLE_BIT, 1);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 1);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 1);
-	} else {
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_COLOR_BIT, 0);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_CONSOLE_BIT, 0);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT2, 0);
-		loox720_egpio_set_bit(LOOX720_CPLD_LCD_BIT, 0);
-	}
-}
-
 static struct pxafb_mach_info loox720_fb_info =
 {
 	.modes			= &loox720_lcd_mode_info,
 	.num_modes		= 1,
-	.lccr0			= LCCR0_Act | LCCR0_Sngl | LCCR0_Color ,
-	.lccr3			= LCCR3_OutEnH | LCCR3_PixRsEdg, // | LCCR3_DPC,
-	.pxafb_backlight_power	= loox720_backlight_power,
-	.pxafb_lcd_power	= loox720_lcd_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP,
+	//.lccr0			= LCCR0_Act | LCCR0_Sngl | LCCR0_Color ,
+	//.lccr3			= LCCR3_OutEnH | LCCR3_PixRsEdg, // | LCCR3_DPC,
+};
+
+// backlight on/off now is handled by the backlight device
+static struct platform_device loox720_bl_device = {
+	.name		= "loox720-bl",
+	.id		= -1,
+};
+
+// lcd on/off is now handled by the lcd device
+static struct platform_device loox720_lcd_device = {
+	.name		= "loox720-lcd",
+	.id		= -1,
 };
 
 static int __init
@@ -89,14 +77,16 @@ loox720_lcd_init (void)
 		return -ENODEV;
 
 	set_pxa_fb_info(&loox720_fb_info);
-
+	platform_device_register(&loox720_bl_device);
+	platform_device_register(&loox720_lcd_device);
 	return 0;
 }
 
 static void __exit
 loox720_lcd_exit (void)
 {
-
+	platform_device_unregister(&loox720_bl_device);
+	platform_device_unregister(&loox720_lcd_device);
 }
 
 module_init (loox720_lcd_init);

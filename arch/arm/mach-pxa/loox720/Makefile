@@ -2,7 +2,6 @@
 # FS Loox Makefile for the linux kernel.
 #
 obj-$(CONFIG_MACH_LOOX720)	+= loox720.o
-obj-$(CONFIG_MACH_LOOX720)	+= loox720_battery.o
 obj-$(CONFIG_MACH_LOOX720)	+= loox720_cpld.o
 obj-$(CONFIG_MACH_LOOX720)	+= loox720_leds.o
 obj-$(CONFIG_PM)		+= loox720_pm.o
