@@ -35,6 +35,7 @@ config LOOX720_ADS7846
     bool "FSC Loox 720 simple direct SPI (Recommended)"
     select SPI
     select SPI_PXA2XX
+    select HWMON
     depends on MACH_LOOX720
     help
         FSC Loox 720 ADS7846 touchscreen over SPI support.
@@ -116,9 +117,8 @@ config DRAM_SIZE
     depends on MACH_LOOX720
     default 0x8000000
     help
-        The loox has 128 MB memory but due to some problems we set
-        the value to 96 MB. If you use Haret prior to 0.4.9, set this
-        to 0x6000000, ot loox won't boot.
+        The loox has 128 MB memory. If you use Haret prior to 0.4.9,
+        set this to 0x6000000, or loox won't boot.
         Also you will have to change DRAM Base Address value.
 
 config LOOX720_LIMIT_CPUFREQ
@@ -126,7 +126,7 @@ config LOOX720_LIMIT_CPUFREQ
         depends on MACH_LOOX720
         default yes
         help
-                Not all LOOX pdas work on 624MHz. So, to avoid hangs, enable this.
+                Not all Loox PDAs work on 624MHz. So, to avoid hangs, enable this.
 
 config LOOX720_GPIOED
         tristate 'access GPIO from userland'
